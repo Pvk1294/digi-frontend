@@ -1,13 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RefreshCw, Download, Wifi, Edit } from 'lucide-react';
 import { useAdAccounts } from '@/components/providers/AdAccountProvider';
+import { useAuth } from '@/components/auth/AuthProvider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const AdAccountSync = () => {
-  const { adAccounts, isLoading, syncAccounts } = useAdAccounts();
+  const { 
+    adAccounts, 
+    isLoading, 
+    syncAccounts,
+    assignedBusinessAccounts 
+  } = useAdAccounts();
+  
+  const { user } = useAuth();
+
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -18,26 +35,51 @@ export const AdAccountSync = () => {
     }
   };
 
+  // ✅ FIX: Simplified logic. Show the dropdown for ANY user if there's more than one account to choose from.
+  const showDropdown = assignedBusinessAccounts.length > 1;
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Wifi className="h-5 w-5" />
               Facebook Ad Accounts
             </CardTitle>
             <p className="text-sm text-gray-600 mt-1">
-              Sync ad accounts from Facebook Business Manager and configure product keywords.
+              Sync ad accounts from Facebook and configure product keywords.
             </p>
           </div>
-          <Button onClick={syncAccounts} disabled={isLoading}>
-            {isLoading ? (
-              <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Syncing...</>
-            ) : (
-              <><Download className="mr-2 h-4 w-4" /> Sync Accounts</>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {showDropdown && (
+              <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Select account to sync" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {assignedBusinessAccounts.map(ba => (
+                    <SelectItem key={ba.id} value={String(ba.id)}>
+                      {ba.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
-          </Button>
+            <Button 
+              onClick={() => syncAccounts(selectedAccountId === 'all' ? undefined : selectedAccountId)} 
+              disabled={isLoading}
+              className="flex-grow"
+            >
+              {isLoading ? (
+                <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Syncing...</>
+              ) : (
+                <><Download className="mr-2 h-4 w-4" /> Sync</>
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       
@@ -46,27 +88,24 @@ export const AdAccountSync = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                {/* <TableHead>Client Name</TableHead> */} {/* REMOVED */}
                 <TableHead>Ad Account Name</TableHead>
                 <TableHead>Account ID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Product Keywords</TableHead>
                 <TableHead>Last Sync</TableHead>
-                {/* <TableHead>Actions</TableHead> */} {/* REMOVED */}
               </TableRow>
             </TableHeader>
             <TableBody>
               {adAccounts.map((account) => (
                 <TableRow key={account.id}>
-                  {/* <TableCell className="font-medium">{account.clientName}</TableCell> */} {/* REMOVED */}
                   <TableCell>{account.name}</TableCell>
                   <TableCell className="font-mono text-sm">{account.id}</TableCell>
                   <TableCell>{getStatusBadge(account.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="flex flex-wrap gap-1">
-                        {account.keywords && account.keywords.length > 0 ? (
-                          account.keywords.map((keyword, index) => (
+                        {(account as any).productKeywords && (account as any).productKeywords.length > 0 ? (
+                          (account as any).productKeywords.map((keyword: string, index: number) => (
                             <Badge key={index} variant="secondary">{keyword}</Badge>
                           ))
                         ) : (
@@ -79,9 +118,6 @@ export const AdAccountSync = () => {
                     </div>
                   </TableCell>
                   <TableCell>{account.lastSync ? new Date(account.lastSync).toLocaleDateString() : 'Never'}</TableCell>
-                  {/* <TableCell> */} {/* REMOVED */}
-                  {/* <Button variant="outline" size="sm">Generate Report</Button> */}
-                  {/* </TableCell> */}
                 </TableRow>
               ))}
             </TableBody>

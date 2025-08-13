@@ -1,8 +1,9 @@
-import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { AdAccount, ProductMetric } from '@/types/reports';
+import { useAuth } from '../auth/AuthProvider'; // ✅ 1. Import useAuth to check login status
 
-// --- Interfaces for Report Data ---
+// --- Interfaces (Unchanged) ---
 interface DailyReport {
   totalSpend: number;
   totalLeads: number;
@@ -12,20 +13,16 @@ interface DailyReport {
   timezone?: string;
   currency?: string;
 }
-
 interface ReportState {
   status: 'pending' | 'loading' | 'completed' | 'failed';
   data?: DailyReport;
 }
-
 interface ComprehensiveReportData {
   performance: any[];
   products: any[];
   summary: any;
   clientName: string;
 }
-
-// --- Define the type for the PDF payload ---
 interface PdfPayload {
     reportData: ComprehensiveReportData;
     clientName: string;
@@ -37,11 +34,23 @@ interface PdfPayload {
     };
 }
 
+// ✅ 2. NEW INTERFACE for the business accounts dropdown
+interface AssignedBusinessAccount {
+  id: number;
+  name: string;
+}
+
+
+// ✅ 3. UPDATE THE CONTEXT TYPE with new state and functions
 interface AdAccountContextType {
   adAccounts: AdAccount[];
   isLoading: boolean;
-  syncAccounts: () => Promise<void>;
+  syncAccounts: (businessAccountId?: string) => Promise<void>; // Now accepts an optional ID
   
+  // New properties for the dropdown
+  assignedBusinessAccounts: AssignedBusinessAccount[];
+  fetchAssignedBusinessAccounts: () => Promise<void>;
+
   dailyReports: Map<string, ReportState>;
   isInitialReportFetchDone: boolean;
   fetchAndSetDailyReports: (accounts: AdAccount[]) => Promise<void>;
@@ -55,9 +64,8 @@ interface AdAccountContextType {
   pdfUrl: string | null;
   generatePdfReport: (payload: PdfPayload) => Promise<void>; 
   clearComprehensiveReport: () => void;
-
-  // --- NEW FUNCTION FOR KEYWORDS ---
   updateAccountKeywords: (accountId: string, keywords: string[]) => Promise<void>;
+  clearAllData: () => void;
 }
 
 const AdAccountContext = createContext<AdAccountContextType | undefined>(undefined);
@@ -71,6 +79,10 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  
+  // ✅ 4. ADD NEW STATE for the business accounts list
+  const [assignedBusinessAccounts, setAssignedBusinessAccounts] = useState<AssignedBusinessAccount[]>([]);
+  const { isAuthenticated } = useAuth(); // Get auth status
 
   const clearAllData = useCallback(() => {
     setAdAccounts([]);
@@ -78,26 +90,71 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     setIsInitialReportFetchDone(false);
     setComprehensiveReport(null);
     setPdfUrl(null);
-    // Add any other state resets here if needed
+    setAssignedBusinessAccounts([]); // Also clear the business accounts list
     console.log("AdAccountProvider data cleared.");
   }, []);
 
-  const syncAccounts = useCallback(async () => {
+  // ✅ 5. NEW FUNCTION to fetch the business accounts for the dropdown
+  const fetchAssignedBusinessAccounts = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      
+      // IMPORTANT: You will need to create this new endpoint on your backend.
+      // It should return a list of business accounts assigned to the logged-in user.
+      const response = await fetch('http://localhost:4000/api/users/me/business-accounts', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch assigned accounts.');
+      
+      const data: AssignedBusinessAccount[] = await response.json();
+      setAssignedBusinessAccounts(data);
+
+    } catch (error: any) {
+      toast({ title: "Error", description: "Could not fetch business accounts for dropdown.", variant: "destructive" });
+    }
+  }, []);
+
+  // Fetch the business accounts list once the user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAssignedBusinessAccounts();
+    }
+  }, [isAuthenticated, fetchAssignedBusinessAccounts]);
+
+
+  // ✅ 6. UPDATE syncAccounts to accept an optional ID
+  const syncAccounts = useCallback(async (businessAccountId?: string) => {
     setIsLoading(true);
-    toast({ title: "Syncing Ad Accounts", description: "Fetching accounts from Facebook..." });
+    const toastMessage = businessAccountId ? "Syncing selected business account..." : "Syncing all accounts...";
+    toast({ title: "Syncing Ad Accounts", description: toastMessage });
+    
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) throw new Error("Authentication token not found.");
+
+      const body = businessAccountId ? { businessAccountId } : {};
+
       const response = await fetch('http://localhost:4000/api/facebook/sync-accounts', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body), // Send the ID in the body
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to sync from server');
       }
       const { accounts } = await response.json();
-      setAdAccounts(accounts);
+      
+      // When syncing a single business account, we should append/update, not replace.
+      // This logic merges the newly synced accounts with the existing ones.
+      setAdAccounts(prevAccounts => {
+        const updatedAccounts = new Map(prevAccounts.map(acc => [acc.id, acc]));
+        accounts.forEach((acc: AdAccount) => updatedAccounts.set(acc.id, acc));
+        return Array.from(updatedAccounts.values());
+      });
+
       toast({ title: "Sync Complete!", description: `Successfully synced ${accounts.length} ad accounts.` });
     } catch (error: any) {
       console.error('Sync failed:', error);
@@ -106,6 +163,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   }, []);
+
+  // ... rest of your functions (fetchReportForAccount, etc.) are unchanged ...
 
   const fetchReportForAccount = useCallback(async (accountId: string): Promise<[string, ReportState]> => {
     try {
@@ -215,7 +274,6 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       setPdfUrl(null);
   }, []);
 
-  // --- NEW FUNCTION IMPLEMENTATION ---
   const updateAccountKeywords = useCallback(async (accountId: string, keywords: string[]) => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -238,7 +296,6 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
             throw new Error(data.message || 'Failed to update keywords.');
         }
 
-        // Update the state locally to reflect the change immediately
         setAdAccounts(prevAccounts => 
             prevAccounts.map(account => 
                 account.id === accountId 
@@ -254,8 +311,10 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
 
+  // ✅ 7. UPDATE useMemo to include the new properties
   const value = useMemo(() => ({
     adAccounts, isLoading, syncAccounts,
+    assignedBusinessAccounts, fetchAssignedBusinessAccounts, // New properties
     dailyReports, isInitialReportFetchDone, fetchAndSetDailyReports, refreshSingleDailyReport,
     comprehensiveReport, isGeneratingReport, generateComprehensiveReport,
     isGeneratingPdf,
@@ -266,6 +325,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     clearAllData,
   }), [
     adAccounts, isLoading, syncAccounts,
+    assignedBusinessAccounts, fetchAssignedBusinessAccounts, // New dependencies
     dailyReports, isInitialReportFetchDone, fetchAndSetDailyReports, refreshSingleDailyReport,
     comprehensiveReport, isGeneratingReport, generateComprehensiveReport,
     isGeneratingPdf,
