@@ -55,6 +55,9 @@ interface AdAccountContextType {
   pdfUrl: string | null;
   generatePdfReport: (payload: PdfPayload) => Promise<void>; 
   clearComprehensiveReport: () => void;
+
+  // --- NEW FUNCTION FOR KEYWORDS ---
+  updateAccountKeywords: (accountId: string, keywords: string[]) => Promise<void>;
 }
 
 const AdAccountContext = createContext<AdAccountContextType | undefined>(undefined);
@@ -68,14 +71,24 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  
+
+  const clearAllData = useCallback(() => {
+    setAdAccounts([]);
+    setDailyReports(new Map());
+    setIsInitialReportFetchDone(false);
+    setComprehensiveReport(null);
+    setPdfUrl(null);
+    // Add any other state resets here if needed
+    console.log("AdAccountProvider data cleared.");
+  }, []);
+
   const syncAccounts = useCallback(async () => {
     setIsLoading(true);
     toast({ title: "Syncing Ad Accounts", description: "Fetching accounts from Facebook..." });
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) throw new Error("Authentication token not found.");
-      const response = await fetch('https://digi-esw3.vercel.app//api/facebook/sync-accounts', {
+      const response = await fetch('http://localhost:4000/api/facebook/sync-accounts', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
@@ -97,7 +110,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const fetchReportForAccount = useCallback(async (accountId: string): Promise<[string, ReportState]> => {
     try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('https://digi-esw3.vercel.app//api/facebook/daily-report', {
+        const response = await fetch('http://localhost:4000/api/facebook/daily-report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ accountId }),
@@ -107,7 +120,6 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
         return [accountId, { status: 'completed', data: reportData }];
     } catch (error) {
         console.error(`Error fetching report for ${accountId}:`, error);
-        // This return statement fixes the TypeScript error
         return [accountId, { status: 'failed' }];
     }
   }, []);
@@ -138,7 +150,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     setComprehensiveReport(null);
     try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('https://digi-esw3.vercel.app//api/facebook/comprehensive-report', {
+        const response = await fetch('http://localhost:4000/api/facebook/comprehensive-report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ accountId, range }),
@@ -166,7 +178,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('https://digi-esw3.vercel.app//api/reports/generate-pdf', {
+        const response = await fetch('http://localhost:4000/api/reports/generate-pdf', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
@@ -203,6 +215,45 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       setPdfUrl(null);
   }, []);
 
+  // --- NEW FUNCTION IMPLEMENTATION ---
+  const updateAccountKeywords = useCallback(async (accountId: string, keywords: string[]) => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        toast({ title: "Error", description: "Authentication token not found.", variant: "destructive" });
+        return;
+    }
+    
+    try {
+        const response = await fetch(`http://localhost:4000/api/facebook/accounts/${accountId}/keywords`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ keywords }),
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to update keywords.');
+        }
+
+        // Update the state locally to reflect the change immediately
+        setAdAccounts(prevAccounts => 
+            prevAccounts.map(account => 
+                account.id === accountId 
+                    ? { ...account, productKeywords: keywords } 
+                    : account
+            )
+        );
+        toast({ title: "Success", description: "Keywords updated." });
+
+    } catch (error: any) {
+        toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+    }
+  }, []);
+
+
   const value = useMemo(() => ({
     adAccounts, isLoading, syncAccounts,
     dailyReports, isInitialReportFetchDone, fetchAndSetDailyReports, refreshSingleDailyReport,
@@ -211,6 +262,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     pdfUrl,
     generatePdfReport,
     clearComprehensiveReport,
+    updateAccountKeywords,
+    clearAllData,
   }), [
     adAccounts, isLoading, syncAccounts,
     dailyReports, isInitialReportFetchDone, fetchAndSetDailyReports, refreshSingleDailyReport,
@@ -219,6 +272,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     pdfUrl,
     generatePdfReport, 
     clearComprehensiveReport,
+    updateAccountKeywords,
+    clearAllData,
   ]);
 
   return (

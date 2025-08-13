@@ -15,7 +15,7 @@ interface DailyReport {
   avgCpl: number;
   balance?: number;
   timezone?: string;
-  currency?: string; // Corrected typo from 'curreny' to 'currency'
+  currency?: string;  
 }
 
 // --- ADDED: Currency Formatting Helper ---

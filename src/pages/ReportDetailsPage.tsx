@@ -19,7 +19,7 @@ export const ReportDetailsPage = () => {
         const token = localStorage.getItem('auth_token');
         if (!token) throw new Error("Authentication token not found.");
         
-        const response = await fetch(`  /api/reports/${reportId}`, {
+        const response = await fetch(`http://localhost:4000/api/reports/${reportId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 

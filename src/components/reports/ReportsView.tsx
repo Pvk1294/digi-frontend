@@ -40,7 +40,7 @@ export const ReportsView = () => {
           throw new Error("Authentication token not found. Please log in.");
         }
 
-        const response = await fetch('https://digi-esw3.vercel.app//api/reports', {
+        const response = await fetch('http://localhost:4000/api/reports', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { User, AuthState, LoginCredentials } from '@/types/auth'; // Ensure these types are defined correctly
 import { toast } from '@/hooks/use-toast';
+import { jwtDecode } from 'jwt-decode';
+import { useAdAccounts } from '../providers/AdAccountProvider';
 
 // 1. UPDATE THE CONTEXT TYPE TO INCLUDE THE TOKEN
 interface AuthContextType extends AuthState {
@@ -66,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (credentials: LoginCredentials) => {
     dispatch({ type: 'LOGIN_START' });
     try {
-      const res = await fetch('https://digi-esw3.vercel.app//api/auth/login', {
+      const res = await fetch('http://localhost:4000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
