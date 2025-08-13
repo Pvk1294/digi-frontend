@@ -5,6 +5,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { LogOut, Shield, User, Menu } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { Footer } from '@/components/ui/Footer';
+import { useInactivityLogout } from '../../hooks/useInactivityLogout';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth();
+  useInactivityLogout();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

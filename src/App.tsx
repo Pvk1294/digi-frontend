@@ -7,7 +7,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { AdAccountProvider } from "./components/providers/AdAccountProvider";
 import { AuthProvider } from './components/auth/AuthProvider';
-// --- 1. Import the new components ---
 import { ReportsView } from "./components/reports/ReportsView";
 import { ReportDetailsPage } from "./pages/ReportDetailsPage";
 

@@ -1,9 +1,9 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { AdAccount, ProductMetric } from '@/types/reports';
-import { useAuth } from '../auth/AuthProvider'; // ✅ 1. Import useAuth to check login status
+import { useAuth } from '../auth/AuthProvider';
 
-// --- Interfaces (Unchanged) ---
+// --- Interfaces ---
 interface DailyReport {
   totalSpend: number;
   totalLeads: number;
@@ -33,33 +33,25 @@ interface PdfPayload {
         to: string;
     };
 }
-
-// ✅ 2. NEW INTERFACE for the business accounts dropdown
 interface AssignedBusinessAccount {
   id: number;
   name: string;
 }
 
-
-// ✅ 3. UPDATE THE CONTEXT TYPE with new state and functions
+// --- Context Type Definition ---
 interface AdAccountContextType {
   adAccounts: AdAccount[];
   isLoading: boolean;
-  syncAccounts: (businessAccountId?: string) => Promise<void>; // Now accepts an optional ID
-  
-  // New properties for the dropdown
+  syncAccounts: (businessAccountId?: string) => Promise<void>;
   assignedBusinessAccounts: AssignedBusinessAccount[];
   fetchAssignedBusinessAccounts: () => Promise<void>;
-
   dailyReports: Map<string, ReportState>;
   isInitialReportFetchDone: boolean;
   fetchAndSetDailyReports: (accounts: AdAccount[]) => Promise<void>;
   refreshSingleDailyReport: (accountId: string) => Promise<void>;
-
   comprehensiveReport: ComprehensiveReportData | null;
   isGeneratingReport: boolean;
   generateComprehensiveReport: (accountId: string, range: string) => Promise<void>;
-
   isGeneratingPdf: boolean;
   pdfUrl: string | null;
   generatePdfReport: (payload: PdfPayload) => Promise<void>; 
@@ -79,10 +71,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  
-  // ✅ 4. ADD NEW STATE for the business accounts list
   const [assignedBusinessAccounts, setAssignedBusinessAccounts] = useState<AssignedBusinessAccount[]>([]);
-  const { isAuthenticated } = useAuth(); // Get auth status
+  const { isAuthenticated } = useAuth();
 
   const clearAllData = useCallback(() => {
     setAdAccounts([]);
@@ -90,18 +80,15 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     setIsInitialReportFetchDone(false);
     setComprehensiveReport(null);
     setPdfUrl(null);
-    setAssignedBusinessAccounts([]); // Also clear the business accounts list
+    setAssignedBusinessAccounts([]);
     console.log("AdAccountProvider data cleared.");
   }, []);
 
-  // ✅ 5. NEW FUNCTION to fetch the business accounts for the dropdown
   const fetchAssignedBusinessAccounts = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
       
-      // IMPORTANT: You will need to create this new endpoint on your backend.
-      // It should return a list of business accounts assigned to the logged-in user.
       const response = await fetch('http://localhost:4000/api/users/me/business-accounts', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -115,15 +102,12 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Fetch the business accounts list once the user is authenticated
   useEffect(() => {
     if (isAuthenticated) {
       fetchAssignedBusinessAccounts();
     }
   }, [isAuthenticated, fetchAssignedBusinessAccounts]);
 
-
-  // ✅ 6. UPDATE syncAccounts to accept an optional ID
   const syncAccounts = useCallback(async (businessAccountId?: string) => {
     setIsLoading(true);
     const toastMessage = businessAccountId ? "Syncing selected business account..." : "Syncing all accounts...";
@@ -138,7 +122,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch('http://localhost:4000/api/facebook/sync-accounts', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body), // Send the ID in the body
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -147,13 +131,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       }
       const { accounts } = await response.json();
       
-      // When syncing a single business account, we should append/update, not replace.
-      // This logic merges the newly synced accounts with the existing ones.
-      setAdAccounts(prevAccounts => {
-        const updatedAccounts = new Map(prevAccounts.map(acc => [acc.id, acc]));
-        accounts.forEach((acc: AdAccount) => updatedAccounts.set(acc.id, acc));
-        return Array.from(updatedAccounts.values());
-      });
+      // This ensures the UI only shows the results of the most recent sync.
+      setAdAccounts(accounts);
 
       toast({ title: "Sync Complete!", description: `Successfully synced ${accounts.length} ad accounts.` });
     } catch (error: any) {
@@ -163,8 +142,6 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   }, []);
-
-  // ... rest of your functions (fetchReportForAccount, etc.) are unchanged ...
 
   const fetchReportForAccount = useCallback(async (accountId: string): Promise<[string, ReportState]> => {
     try {
@@ -310,11 +287,9 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-
-  // ✅ 7. UPDATE useMemo to include the new properties
   const value = useMemo(() => ({
     adAccounts, isLoading, syncAccounts,
-    assignedBusinessAccounts, fetchAssignedBusinessAccounts, // New properties
+    assignedBusinessAccounts, fetchAssignedBusinessAccounts,
     dailyReports, isInitialReportFetchDone, fetchAndSetDailyReports, refreshSingleDailyReport,
     comprehensiveReport, isGeneratingReport, generateComprehensiveReport,
     isGeneratingPdf,
@@ -325,7 +300,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     clearAllData,
   }), [
     adAccounts, isLoading, syncAccounts,
-    assignedBusinessAccounts, fetchAssignedBusinessAccounts, // New dependencies
+    assignedBusinessAccounts, fetchAssignedBusinessAccounts,
     dailyReports, isInitialReportFetchDone, fetchAndSetDailyReports, refreshSingleDailyReport,
     comprehensiveReport, isGeneratingReport, generateComprehensiveReport,
     isGeneratingPdf,
