@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart3, Search, Filter, Download, Eye, Calendar, FileText, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Report } from '@/types/reports';
+import api from '@/lib/api'; // <-- 1. IMPORT THE API INSTANCE
 
-// Dynamic currency formatting function
+// Dynamic currency formatting function (no changes here)
 const formatCurrency = (amount: number, currencyCode: string = 'USD') => {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -35,29 +36,12 @@ export const ReportsView = () => {
     const fetchReports = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          throw new Error("Authentication token not found. Please log in.");
-        }
-
-        const response = await fetch('http://localhost:4000/api/reports', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Unauthorized. Your session may have expired.');
-          }
-          throw new Error('Network response was not ok');
-        }
-        
-        const data = await response.json();
-        setReports(data);
+        // --- 2. REFACTORED TO USE THE API INSTANCE ---
+        const response = await api.get('/reports');
+        setReports(response.data);
       } catch (error: any) {
         console.error("Failed to fetch reports:", error);
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.response?.data?.message || "Failed to fetch reports.", variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
@@ -65,6 +49,8 @@ export const ReportsView = () => {
     
     fetchReports();
   }, []);
+
+  // --- NO CHANGES TO THE REST OF THE COMPONENT LOGIC ---
 
   const filteredReports = reports.filter(report => {
     const clientName = report.clientName || '';
@@ -76,7 +62,6 @@ export const ReportsView = () => {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  // This function is now corrected to use uppercase status values
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -125,7 +110,6 @@ export const ReportsView = () => {
     return metrics.reduce((sum, metric) => sum + (metric.leads || 0), 0);
   };
 
-  // These counters are now corrected to use uppercase status values
   const completedReports = reports.filter(r => r.status === 'COMPLETED').length;
   const generatingReports = reports.filter(r => r.status === 'GENERATING').length;
   const failedReports = reports.filter(r => r.status === 'FAILED').length;
@@ -224,7 +208,6 @@ export const ReportsView = () => {
                     <TableCell><div className="text-sm">{new Date(report.generatedAt).toLocaleDateString()}<div className="text-xs text-gray-500">{new Date(report.generatedAt).toLocaleTimeString()}</div></div></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleViewReport(report)} disabled={report.status !== 'COMPLETED' && report.status !== 'SENT'}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDownload(report)} disabled={!report.pdfUrl || (report.status !== 'COMPLETED' && report.status !== 'SENT')}><Download className="h-4 w-4" /></Button>
                       </div>
                     </TableCell>

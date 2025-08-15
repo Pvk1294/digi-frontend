@@ -2,8 +2,9 @@ import React, { createContext, useState, useContext, ReactNode, useCallback, use
 import { ProductMetric } from '@/types/reports';
 import { useAuth } from '../auth/AuthProvider';
 import { toast } from '@/components/ui/use-toast';
+import api from '@/lib/api';
 
-// --- Interfaces ---
+// --- Interfaces (no changes here) ---
 interface DailyReport {
   totalSpend: number;
   totalLeads: number;
@@ -51,7 +52,7 @@ interface AssignedBusinessAccount {
   name: string;
 }
 
-// --- Context Type Definition ---
+// --- Context Type Definition (no changes here) ---
 interface AdAccountContextType {
   adAccounts: AdAccount[];
   isLoading: boolean;
@@ -85,7 +86,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [assignedBusinessAccounts, setAssignedBusinessAccounts] = useState<AssignedBusinessAccount[]>([]);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth(); // <-- Get user from AuthContext
 
   const clearAllData = useCallback(() => {
     setAdAccounts([]);
@@ -99,36 +100,20 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchAssignedBusinessAccounts = useCallback(async () => {
     try {
-      console.log('Fetching assigned business accounts...');
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        console.error('No auth token found');
-        return;
-      }
+      // --- REFACTORED TO USE API INSTANCE ---
+      const response = await api.get('/users/me/business-accounts');
+      const data: AssignedBusinessAccount[] = response.data;
       
-      const response = await fetch('http://localhost:4000/api/users/me/business-accounts', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to fetch assigned accounts:', errorText);
-        throw new Error('Failed to fetch assigned accounts.');
-      }
-      
-      const data: AssignedBusinessAccount[] = await response.json();
-      console.log('Fetched business accounts:', data);
       setAssignedBusinessAccounts(data);
-      return data; // Return the data for potential chaining
-
+      return data;
     } catch (error: any) {
       console.error('Error in fetchAssignedBusinessAccounts:', error);
       toast({ 
         title: "Error", 
-        description: error.message || "Could not fetch business accounts", 
+        description: error.response?.data?.message || "Could not fetch business accounts", 
         variant: "destructive" 
       });
-      return []; // Return empty array on error
+      return [];
     }
   }, []);
 
@@ -140,19 +125,12 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
   const syncAccounts = useCallback(async (businessAccountId?: string) => {
     setIsLoading(true);
-    const token = localStorage.getItem('auth_token');
-    
     try {
-      // First, ensure we have the latest assigned accounts
       const assignedAccounts = await fetchAssignedBusinessAccounts();
-      
-      // If no specific account is selected, sync all assigned accounts
       const accountsToSync = businessAccountId && businessAccountId !== 'all'
         ? [businessAccountId]
         : assignedAccounts?.map(acc => String(acc.id)) || [];
-      
-      console.log('Accounts to sync:', accountsToSync);
-      
+
       if (accountsToSync.length === 0) {
         toast({ 
           title: "No accounts assigned", 
@@ -162,24 +140,12 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const response = await fetch('http://localhost:4000/api/facebook/sync-accounts', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ 
-          businessAccountIds: accountsToSync 
-        }),
+      // --- REFACTORED TO USE API INSTANCE ---
+      const response = await api.post('/facebook/sync-accounts', { 
+        businessAccountIds: accountsToSync 
       });
+      const responseData = response.data;
 
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to sync accounts');
-      }
-      
-      // If no accounts were synced, show a message
       if (!responseData.accounts || responseData.accounts.length === 0) {
         toast({
           title: "No accounts synced",
@@ -188,73 +154,45 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
         });
         return;
       }
-      
-      // For CRM managers, filter accounts to only show those they have access to
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const isAdmin = user.role === 'super_admin';
-      
-      // Get the list of business account IDs the user has access to
+
+      const isAdmin = user?.role === 'super_admin';
       const allowedBusinessAccountIds = assignedAccounts?.map(a => a.id) || [];
       
-      // Filter accounts based on user role and access
       const syncedAccounts = isAdmin 
         ? responseData.accounts 
         : responseData.accounts.filter((account: AdAccount) => 
             allowedBusinessAccountIds.includes(account.businessAccountId)
           );
       
-      console.log('Synced accounts:', {
-        totalAccounts: responseData.accounts.length,
-        filteredAccounts: syncedAccounts.length,
-        allowedBusinessAccountIds,
-        accounts: syncedAccounts
-      });
-      
-      // Update the state with the filtered accounts
       setAdAccounts(syncedAccounts);
       
-      // Show success message with the count of synced accounts
       toast({ 
         title: "Sync Complete!", 
         description: `Successfully synced ${syncedAccounts.length} ad accounts.`,
         variant: syncedAccounts.length === 0 ? "destructive" : "default"
       });
       
-      // If no accounts were synced and the user has assigned business accounts, show a warning
-      if (syncedAccounts.length === 0 && allowedBusinessAccountIds.length > 0) {
-        toast({
-          title: "No Ad Accounts Found",
-          description: "No ad accounts were found in the connected business accounts.",
-          variant: "destructive"
-        });
-      }
-      
     } catch (error: any) {
       console.error('Sync failed:', error);
       toast({ 
         title: "Sync Failed", 
-        description: error.message || 'Failed to sync accounts',
+        description: error.response?.data?.message || 'Failed to sync accounts',
         variant: "destructive" 
       });
     } finally {
       setIsLoading(false);
     }
-  }, [assignedBusinessAccounts]);
+  }, [fetchAssignedBusinessAccounts, user]);
 
   const fetchReportForAccount = useCallback(async (accountId: string): Promise<[string, ReportState]> => {
     try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://localhost:4000/api/facebook/daily-report', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ accountId }),
-        });
-        if (!response.ok) { throw new Error('Failed to fetch report from server.'); }
-        const reportData: DailyReport = await response.json();
-        return [accountId, { status: 'completed', data: reportData }];
+      // --- REFACTORED TO USE API INSTANCE ---
+      const response = await api.post('/facebook/daily-report', { accountId });
+      const reportData: DailyReport = response.data;
+      return [accountId, { status: 'completed', data: reportData }];
     } catch (error) {
-        console.error(`Error fetching report for ${accountId}:`, error);
-        return [accountId, { status: 'failed' }];
+      console.error(`Error fetching report for ${accountId}:`, error);
+      return [accountId, { status: 'failed' }];
     }
   }, []);
   
@@ -283,22 +221,14 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     setIsGeneratingReport(true);
     setComprehensiveReport(null);
     try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://localhost:4000/api/facebook/comprehensive-report', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ accountId, range }),
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Failed to generate report.");
-        }
-        const reportData: ComprehensiveReportData = await response.json();
+        // --- REFACTORED TO USE API INSTANCE ---
+        const response = await api.post('/facebook/comprehensive-report', { accountId, range });
+        const reportData: ComprehensiveReportData = response.data;
         const client = adAccounts.find(acc => acc.id === accountId);
         setComprehensiveReport({ ...reportData, clientName: client?.name || 'Unknown Client' });
         toast({ title: "Report Generated", description: "Comprehensive report is ready." });
     } catch (error: any) {
-        toast({ title: "Generation Failed", description: error.message, variant: "destructive" });
+        toast({ title: "Generation Failed", description: error.response?.data?.message || "Failed to generate report.", variant: "destructive" });
     } finally {
         setIsGeneratingReport(false);
     }
@@ -307,38 +237,17 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const generatePdfReport = useCallback(async (payload: PdfPayload) => {
     setIsGeneratingPdf(true);
     setPdfUrl(null);
-
-    const { reportData, clientName, adAccountId, reportType, dateRange } = payload;
-
     try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://localhost:4000/api/reports/generate-pdf', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                Authorization: `Bearer ${token}` 
-            },
-            body: JSON.stringify({ 
-                reportData,
-                clientName,
-                adAccountId,
-                reportType,
-                dateRange,
-            }),
+        // --- REFACTORED TO USE API INSTANCE ---
+        const response = await api.post('/reports/generate-pdf', payload, {
+          responseType: 'blob', // Important for handling file downloads
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "PDF generation failed on the server.");
-        }
-
-        const blob = await response.blob();
+        const blob = response.data;
         const url = window.URL.createObjectURL(blob);
         setPdfUrl(url);
         toast({ title: "PDF Ready", description: "Your PDF report is ready for download." });
-
     } catch (error: any) {
-        toast({ title: "PDF Failed", description: error.message, variant: "destructive" });
+        toast({ title: "PDF Failed", description: error.response?.data?.message || "PDF generation failed.", variant: "destructive" });
     } finally {
         setIsGeneratingPdf(false);
     }
@@ -350,27 +259,13 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateAccountKeywords = useCallback(async (accountId: string, keywords: string[]) => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-        toast({ title: "Error", description: "Authentication token not found.", variant: "destructive" });
-        return;
-    }
-    
     try {
-        const response = await fetch(`http://localhost:4000/api/facebook/accounts/${accountId}/keywords`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({ keywords }),
-        });
-
-        const data = await response.json();
+        // --- REFACTORED TO USE API INSTANCE ---
+        const response = await api.put(`/facebook/accounts/${accountId}/keywords`, { keywords });
+        const data = response.data;
         if (!data.success) {
             throw new Error(data.message || 'Failed to update keywords.');
         }
-
         setAdAccounts(prevAccounts => 
             prevAccounts.map(account => 
                 account.id === accountId 
@@ -379,9 +274,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
             )
         );
         toast({ title: "Success", description: "Keywords updated." });
-
     } catch (error: any) {
-        toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+        toast({ title: "Update Failed", description: error.response?.data?.message || error.message, variant: "destructive" });
     }
   }, []);
 

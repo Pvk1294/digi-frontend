@@ -5,33 +5,34 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, FileWarning, FileDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import api from '@/lib/api'; // 1. Use the central api instance
 
 export const ReportDetailsPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fullPdfUrl, setFullPdfUrl] = useState<string | null>(null); // State for the complete URL
 
   useEffect(() => {
     const fetchReport = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) throw new Error("Authentication token not found.");
+        // 2. Use the 'api' instance which handles authentication automatically
+        const response = await api.get(`/reports/${reportId}`);
         
-        const response = await fetch(`http://localhost:4000/api/reports/${reportId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-          throw new Error('Report not found or you do not have permission.');
-        }
-        
-        const data = await response.json();
+        const data: Report = response.data;
         setReport(data);
 
+        // 3. Construct the full, absolute URL for the PDF
+        if (data.pdfUrl) {
+          // Assuming your backend is at http://localhost:4000
+          const backendUrl = 'http://localhost:4000'; 
+          setFullPdfUrl(`${backendUrl}${data.pdfUrl}`);
+        }
+
       } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.response?.data?.message || "Report not found.", variant: "destructive" });
         setReport(null);
       } finally {
         setIsLoading(false);
@@ -73,9 +74,9 @@ export const ReportDetailsPage = () => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to All Reports
         </Button>
-        {report.pdfUrl && (
+        {fullPdfUrl && (
           <Button asChild>
-            <a href={report.pdfUrl} download={`report-${report.clientName}.pdf`}>
+            <a href={fullPdfUrl} download={`report-${report.clientName}.pdf`}>
               <FileDown className="mr-2 h-4 w-4" />
               Download PDF
             </a>
@@ -83,7 +84,6 @@ export const ReportDetailsPage = () => {
         )}
       </div>
 
-      {/* --- THIS SECTION IS NOW UPDATED --- */}
       <Card className="h-[80vh]">
         <CardHeader>
           <CardTitle className="text-2xl">{report.clientName}</CardTitle>
@@ -92,17 +92,16 @@ export const ReportDetailsPage = () => {
           </p>
         </CardHeader>
         <CardContent className="h-full pb-6">
-          {report.pdfUrl ? (
-            // Embed the PDF using an iframe if the URL exists
+          {fullPdfUrl ? (
+            // 4. Use the full URL to embed the PDF
             <iframe
-              src={report.pdfUrl}
+              src={fullPdfUrl}
               title={`PDF Report for ${report.clientName}`}
               width="100%"
               height="100%"
               className="border rounded-md"
             />
           ) : (
-            // Show a message if the PDF URL is missing
             <div className="flex items-center justify-center h-full text-gray-500">
               PDF for this report is not available.
             </div>

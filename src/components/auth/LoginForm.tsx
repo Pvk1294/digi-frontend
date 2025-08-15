@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 1. Import useEffect
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,26 +9,30 @@ import { Shield, User } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 
 export const LoginForm = () => {
-  // Get the correct state and functions from our AuthProvider
   const { login, verify2fa, isLoading, is2faRequired } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authenticatorCode, setAuthenticatorCode] = useState('');
+  const [loginType, setLoginType] = useState<'crm' | 'admin'>('crm');
 
-  // This will handle both CRM and the first step of Admin login
+  // 2. Add this useEffect hook
+  // This effect syncs the active tab with the authentication state.
+  useEffect(() => {
+    if (is2faRequired) {
+      setLoginType('admin');
+    }
+  }, [is2faRequired]);
+
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // This single function works for both roles.
-      // The AuthProvider will set 'is2faRequired' to true if it's an admin.
       await login({ email, password });
     } catch (error) {
       // Errors are handled in AuthProvider
     }
   };
 
-  // This handles the second step for the admin
   const handleVerificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -49,8 +53,7 @@ export const LoginForm = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {/* We keep your original Tabs structure */}
-          <Tabs defaultValue="crm" className="w-full">
+          <Tabs value={loginType} onValueChange={(value) => setLoginType(value as 'crm' | 'admin')} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="crm" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -62,7 +65,6 @@ export const LoginForm = () => {
               </TabsTrigger>
             </TabsList>
 
-            {/* CRM Login Tab - stays simple */}
             <TabsContent value="crm">
               <form onSubmit={handleInitialLogin} className="space-y-4 pt-4">
                 <div className="space-y-2">
@@ -79,10 +81,8 @@ export const LoginForm = () => {
               </form>
             </TabsContent>
 
-            {/* Admin Login Tab - now uses the logic from AuthProvider */}
             <TabsContent value="admin">
               {!is2faRequired ? (
-                // STEP 1: Admin enters email and password
                 <form onSubmit={handleInitialLogin} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="admin-email">Admin Email</Label>
@@ -97,7 +97,6 @@ export const LoginForm = () => {
                   </Button>
                 </form>
               ) : (
-                // STEP 2: Admin enters the Google Authenticator code
                 <form onSubmit={handleVerificationSubmit} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="authenticator">Google Authenticator Code</Label>

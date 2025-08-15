@@ -7,11 +7,11 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { AdAccountProvider } from "./components/providers/AdAccountProvider";
 import { AuthProvider } from './components/auth/AuthProvider';
-
-// --- 1. Import your components ---
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import DashboardPage from "./pages/DashboardPage"; // Assuming you have a main dashboard page
-import AdminSecurityPage from "./components/admin/AdminSecurityPage"; // The new security page
+import DashboardPage from "./pages/DashboardPage";
+import AdminSecurityPage from "./components/admin/AdminSecurityPage";
+import { ReportsView } from "./components/reports/ReportsView";
+import { ReportDetailsPage } from "./pages/ReportDetailsPage"; // 1. IMPORT THE NEW PAGE
 
 const queryClient = new QueryClient();
 
@@ -24,10 +24,8 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              {/* Public route for login */}
               <Route path="/" element={<Index />} />
 
-              {/* --- 2. Create a Protected Route for the Dashboard --- */}
               <Route
                 path="/dashboard"
                 element={
@@ -37,7 +35,6 @@ const App = () => (
                 }
               />
 
-              {/* --- 3. Create a Protected Route for the Admin Security Page --- */}
               <Route
                 path="/admin/security"
                 element={
@@ -46,12 +43,26 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin', 'crm_manager']}>
+                    <ReportsView />
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* You can keep other specific routes if needed */}
-              {/* <Route path="/reports" element={<ReportsView />} /> */}
-              {/* <Route path="/reports/:reportId" element={<ReportDetailsPage />} /> */}
+              {/* --- 2. ADD THIS NEW ROUTE FOR A SINGLE REPORT --- */}
+              <Route
+                path="/reports/:reportId"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin', 'crm_manager']}>
+                    <ReportDetailsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* Catch-all route for 404 Not Found */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
