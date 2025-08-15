@@ -4,61 +4,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from './AuthProvider';
-import { Shield, User, Info } from 'lucide-react';
+import { Shield, User } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 
 export const LoginForm = () => {
-  const { login, isLoading } = useAuth();
-  const [credentials, setCredentials] = useState({
-    email: '',
-    password: '',
-    otp: '',
-    authenticatorCode: '',
-  });
-  const [step, setStep] = useState<'credentials' | 'verification'>('credentials');
-  const [loginType, setLoginType] = useState<'crm' | 'admin'>('crm');
+  // Get the correct state and functions from our AuthProvider
+  const { login, verify2fa, isLoading, is2faRequired } = useAuth();
 
-  const fillDemoCredentials = (type: 'crm' | 'admin') => {
-    if (type === 'crm') {
-      setCredentials(prev => ({
-        ...prev,
-        email: 'crm@company.com',
-        password: 'demo123'
-      }));
-    } else {
-      setCredentials(prev => ({
-        ...prev,
-        email: 'admin@company.com',
-        password: 'admin123',
-        otp: '123456',
-        authenticatorCode: '789012'
-      }));
-    }
-  };
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authenticatorCode, setAuthenticatorCode] = useState('');
 
+  // This will handle both CRM and the first step of Admin login
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (loginType === 'admin') {
-      setStep('verification');
-    } else {
-      try {
-        await login({ email: credentials.email, password: credentials.password });
-      } catch (error) {
-        // Error handled in AuthProvider
-      }
+    try {
+      // This single function works for both roles.
+      // The AuthProvider will set 'is2faRequired' to true if it's an admin.
+      await login({ email, password });
+    } catch (error) {
+      // Errors are handled in AuthProvider
     }
   };
 
-  const handleAdminVerification = async (e: React.FormEvent) => {
+  // This handles the second step for the admin
+  const handleVerificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
-      await login(credentials);
+      await verify2fa(authenticatorCode);
     } catch (error) {
-      // Error handled in AuthProvider
+      // Errors are handled in AuthProvider
     }
   };
 
@@ -73,7 +49,8 @@ export const LoginForm = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={loginType} onValueChange={(value) => setLoginType(value as 'crm' | 'admin')}>
+          {/* We keep your original Tabs structure */}
+          <Tabs defaultValue="crm" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="crm" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -85,31 +62,16 @@ export const LoginForm = () => {
               </TabsTrigger>
             </TabsList>
 
+            {/* CRM Login Tab - stays simple */}
             <TabsContent value="crm">
-              
-
-              <form onSubmit={handleInitialLogin} className="space-y-4">
+              <form onSubmit={handleInitialLogin} className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your-email@company.com"
-                    value={credentials.email}
-                    onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
-                    required
-                  />
+                  <Label htmlFor="crm-email">Email</Label>
+                  <Input id="crm-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={credentials.password}
-                    onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                    required
-                  />
+                  <Label htmlFor="crm-password">Password</Label>
+                  <Input id="crm-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Authenticating...' : 'Login'}
@@ -117,69 +79,33 @@ export const LoginForm = () => {
               </form>
             </TabsContent>
 
+            {/* Admin Login Tab - now uses the logic from AuthProvider */}
             <TabsContent value="admin">
-              
-
-              {step === 'credentials' ? (
-                <form onSubmit={handleInitialLogin} className="space-y-4">
+              {!is2faRequired ? (
+                // STEP 1: Admin enters email and password
+                <form onSubmit={handleInitialLogin} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="admin-email">Admin Email</Label>
-                    <Input
-                      id="admin-email"
-                      type="email"
-                      placeholder="admin@company.com"
-                      value={credentials.email}
-                      onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
-                      required
-                    />
+                    <Input id="admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="admin-password">Password</Label>
-                    <Input
-                      id="admin-password"
-                      type="password"
-                      placeholder="Enter admin password"
-                      value={credentials.password}
-                      onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                      required
-                    />
+                    <Input id="admin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    Continue to Verification
+                    {isLoading ? 'Authenticating...' : 'Continue to Verification'}
                   </Button>
                 </form>
               ) : (
-                <form onSubmit={handleAdminVerification} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="otp">Email/SMS OTP</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      placeholder="Enter 6-digit OTP"
-                      value={credentials.otp}
-                      onChange={(e) => setCredentials(prev => ({ ...prev, otp: e.target.value }))}
-                      required
-                    />
-                  </div>
+                // STEP 2: Admin enters the Google Authenticator code
+                <form onSubmit={handleVerificationSubmit} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="authenticator">Google Authenticator Code</Label>
-                    <Input
-                      id="authenticator"
-                      type="text"
-                      placeholder="Enter 6-digit code"
-                      value={credentials.authenticatorCode}
-                      onChange={(e) => setCredentials(prev => ({ ...prev, authenticatorCode: e.target.value }))}
-                      required
-                    />
+                    <Input id="authenticator" type="text" value={authenticatorCode} onChange={(e) => setAuthenticatorCode(e.target.value)} required />
                   </div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={() => setStep('credentials')} className="flex-1">
-                      Back
-                    </Button>
-                    <Button type="submit" className="flex-1" disabled={isLoading}>
-                      {isLoading ? 'Verifying...' : 'Verify & Login'}
-                    </Button>
-                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Verifying...' : 'Verify & Login'}
+                  </Button>
                 </form>
               )}
             </TabsContent>

@@ -43,6 +43,8 @@ interface AdAccount {
   businessAccountId: number;
   created_time: string;
   last_used_time: string;
+  lastSync: string | null;
+  keywords?: string[];
 }
 interface AssignedBusinessAccount {
   id: number;
