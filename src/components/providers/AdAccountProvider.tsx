@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect } from 'react';
-import { toast } from '@/hooks/use-toast';
-import { AdAccount, ProductMetric } from '@/types/reports';
+import { ProductMetric } from '@/types/reports';
 import { useAuth } from '../auth/AuthProvider';
+import { toast } from '@/components/ui/use-toast';
 
 // --- Interfaces ---
 interface DailyReport {
@@ -33,6 +33,17 @@ interface PdfPayload {
         to: string;
     };
 }
+interface AdAccount {
+  id: string;
+  name: string;
+  status: string;
+  currency: string;
+  timezone_name: string;
+  business_name: string;
+  businessAccountId: number;
+  created_time: string;
+  last_used_time: string;
+}
 interface AssignedBusinessAccount {
   id: number;
   name: string;
@@ -44,7 +55,7 @@ interface AdAccountContextType {
   isLoading: boolean;
   syncAccounts: (businessAccountId?: string) => Promise<void>;
   assignedBusinessAccounts: AssignedBusinessAccount[];
-  fetchAssignedBusinessAccounts: () => Promise<void>;
+  fetchAssignedBusinessAccounts: () => Promise<AssignedBusinessAccount[]>;
   dailyReports: Map<string, ReportState>;
   isInitialReportFetchDone: boolean;
   fetchAndSetDailyReports: (accounts: AdAccount[]) => Promise<void>;
@@ -86,19 +97,36 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchAssignedBusinessAccounts = useCallback(async () => {
     try {
+      console.log('Fetching assigned business accounts...');
       const token = localStorage.getItem('auth_token');
-      if (!token) return;
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
       
       const response = await fetch('http://localhost:4000/api/users/me/business-accounts', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error('Failed to fetch assigned accounts.');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch assigned accounts:', errorText);
+        throw new Error('Failed to fetch assigned accounts.');
+      }
       
       const data: AssignedBusinessAccount[] = await response.json();
+      console.log('Fetched business accounts:', data);
       setAssignedBusinessAccounts(data);
+      return data; // Return the data for potential chaining
 
     } catch (error: any) {
-      toast({ title: "Error", description: "Could not fetch business accounts for dropdown.", variant: "destructive" });
+      console.error('Error in fetchAssignedBusinessAccounts:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Could not fetch business accounts", 
+        variant: "destructive" 
+      });
+      return []; // Return empty array on error
     }
   }, []);
 
@@ -110,38 +138,106 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
   const syncAccounts = useCallback(async (businessAccountId?: string) => {
     setIsLoading(true);
-    const toastMessage = businessAccountId ? "Syncing selected business account..." : "Syncing all accounts...";
-    toast({ title: "Syncing Ad Accounts", description: toastMessage });
+    const token = localStorage.getItem('auth_token');
     
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) throw new Error("Authentication token not found.");
-
-      const body = businessAccountId ? { businessAccountId } : {};
+      // First, ensure we have the latest assigned accounts
+      const assignedAccounts = await fetchAssignedBusinessAccounts();
+      
+      // If no specific account is selected, sync all assigned accounts
+      const accountsToSync = businessAccountId && businessAccountId !== 'all'
+        ? [businessAccountId]
+        : assignedAccounts?.map(acc => String(acc.id)) || [];
+      
+      console.log('Accounts to sync:', accountsToSync);
+      
+      if (accountsToSync.length === 0) {
+        toast({ 
+          title: "No accounts assigned", 
+          description: "You don't have any accounts assigned to sync.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       const response = await fetch('http://localhost:4000/api/facebook/sync-accounts', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ 
+          businessAccountIds: accountsToSync 
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to sync from server');
-      }
-      const { accounts } = await response.json();
+      const responseData = await response.json();
       
-      // This ensures the UI only shows the results of the most recent sync.
-      setAdAccounts(accounts);
-
-      toast({ title: "Sync Complete!", description: `Successfully synced ${accounts.length} ad accounts.` });
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to sync accounts');
+      }
+      
+      // If no accounts were synced, show a message
+      if (!responseData.accounts || responseData.accounts.length === 0) {
+        toast({
+          title: "No accounts synced",
+          description: "No ad accounts were found or you don't have permission to sync any accounts.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // For CRM managers, filter accounts to only show those they have access to
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const isAdmin = user.role === 'super_admin';
+      
+      // Get the list of business account IDs the user has access to
+      const allowedBusinessAccountIds = assignedAccounts?.map(a => a.id) || [];
+      
+      // Filter accounts based on user role and access
+      const syncedAccounts = isAdmin 
+        ? responseData.accounts 
+        : responseData.accounts.filter((account: AdAccount) => 
+            allowedBusinessAccountIds.includes(account.businessAccountId)
+          );
+      
+      console.log('Synced accounts:', {
+        totalAccounts: responseData.accounts.length,
+        filteredAccounts: syncedAccounts.length,
+        allowedBusinessAccountIds,
+        accounts: syncedAccounts
+      });
+      
+      // Update the state with the filtered accounts
+      setAdAccounts(syncedAccounts);
+      
+      // Show success message with the count of synced accounts
+      toast({ 
+        title: "Sync Complete!", 
+        description: `Successfully synced ${syncedAccounts.length} ad accounts.`,
+        variant: syncedAccounts.length === 0 ? "destructive" : "default"
+      });
+      
+      // If no accounts were synced and the user has assigned business accounts, show a warning
+      if (syncedAccounts.length === 0 && allowedBusinessAccountIds.length > 0) {
+        toast({
+          title: "No Ad Accounts Found",
+          description: "No ad accounts were found in the connected business accounts.",
+          variant: "destructive"
+        });
+      }
+      
     } catch (error: any) {
       console.error('Sync failed:', error);
-      toast({ title: "Sync Failed", description: error.message || "An unknown error occurred.", variant: "destructive" });
+      toast({ 
+        title: "Sync Failed", 
+        description: error.message || 'Failed to sync accounts',
+        variant: "destructive" 
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [assignedBusinessAccounts]);
 
   const fetchReportForAccount = useCallback(async (accountId: string): Promise<[string, ReportState]> => {
     try {

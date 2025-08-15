@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,8 +35,17 @@ export const AdAccountSync = () => {
     }
   };
 
-  // ✅ FIX: Simplified logic. Show the dropdown for ANY user if there's more than one account to choose from.
+  // Show dropdown only if user has more than one assigned account
   const showDropdown = assignedBusinessAccounts.length > 1;
+  
+  // If user has only one account, select it by default
+  useEffect(() => {
+    if (assignedBusinessAccounts.length === 1) {
+      setSelectedAccountId(String(assignedBusinessAccounts[0].id));
+    } else {
+      setSelectedAccountId('all');
+    }
+  }, [assignedBusinessAccounts]);
 
   return (
     <Card>
@@ -53,7 +62,7 @@ export const AdAccountSync = () => {
           </div>
           
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {showDropdown && (
+            {showDropdown ? (
               <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Select account to sync" />
@@ -67,7 +76,11 @@ export const AdAccountSync = () => {
                   ))}
                 </SelectContent>
               </Select>
-            )}
+            ) : assignedBusinessAccounts.length === 1 ? (
+              <div className="text-sm font-medium px-3 py-2 bg-muted rounded-md w-full sm:w-auto">
+                {assignedBusinessAccounts[0].name}
+              </div>
+            ) : null}
             <Button 
               onClick={() => syncAccounts(selectedAccountId === 'all' ? undefined : selectedAccountId)} 
               disabled={isLoading}
