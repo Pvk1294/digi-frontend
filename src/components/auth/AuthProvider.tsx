@@ -1,5 +1,3 @@
-// src/components/auth/AuthProvider.tsx
-
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { User, AuthState, LoginCredentials } from '@/types/auth';
 import { toast } from '@/hooks/use-toast';
@@ -10,7 +8,7 @@ interface AuthContextType extends AuthState {
   is2faRequired: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   verify2fa: (token: string) => Promise<void>;
-  logout: () => void;
+  logout: (message?: string) => void; // <-- FIX 1: Allow an optional message
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,16 +29,10 @@ const authReducer = (state: AuthReducerState, action: AuthAction): AuthReducerSt
       return { ...state, isAuthenticated: !!action.payload.user, user: action.payload.user, token: action.payload.token, isLoading: false };
     case 'LOGIN_START':
       return { ...state, isLoading: true, user: null, token: null, isAuthenticated: false, is2faRequired: false };
-    
-    // THIS IS THE CRITICAL CASE:
-    // We are waiting for the 2FA code. The user is NOT authenticated yet.
     case 'LOGIN_2FA_REQUIRED':
       return { ...state, isLoading: false, isAuthenticated: false, is2faRequired: true };
-      
-    // This case only runs after a token is successfully received (from either login step).
     case 'LOGIN_SUCCESS':
       return { ...state, user: action.payload.user, isAuthenticated: true, isLoading: false, token: action.payload.token, is2faRequired: false };
-      
     case 'LOGIN_FAILURE':
     case 'LOGOUT':
       return { ...state, user: null, isAuthenticated: false, isLoading: false, token: null, is2faRequired: false };
@@ -113,12 +105,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
+  const logout = (message?: string) => {
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('auth_token');
     dispatch({ type: 'LOGOUT' });
-    toast({ title: "Logged Out" });
-    window.location.reload();
+    toast({ title: message || "Logged Out" }); // <-- FIX 2: Use the message
+    window.location.href = '/'; // Use a hard redirect
   };
 
   const value = { ...state, login, logout, verify2fa };

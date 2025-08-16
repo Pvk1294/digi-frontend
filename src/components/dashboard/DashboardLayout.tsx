@@ -1,11 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { LogOut, Shield, User, Settings } from 'lucide-react'; // <-- 1. Import Settings icon
+import { LogOut, Shield, User, Settings } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { Footer } from '@/components/ui/Footer';
 import { useInactivityLogout } from '../../hooks/useInactivityLogout';
-import { Link } from 'react-router-dom'; // <-- 2. Import Link
+import { Link } from 'react-router-dom';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -41,8 +41,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </span>
               </div>
 
-              {/* --- 3. ADDED SECURITY BUTTON FOR ADMINS --- */}
-              {( user?.role === 'super_admin') && (
+              {/* Security button for super_admin */}
+              {user?.role === 'super_admin' && (
                 <Link to="/admin/security">
                   <Button variant="outline" size="sm" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
                     <Settings className="h-3 w-3 md:h-4 md:w-4" />
@@ -51,7 +51,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </Link>
               )}
 
-              <Button variant="outline" onClick={logout} size="sm" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+              {/* --- THIS IS THE FIX --- */}
+              <Button variant="outline" onClick={() => logout()} size="sm" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
                 <LogOut className="h-3 w-3 md:h-4 md:w-4" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
