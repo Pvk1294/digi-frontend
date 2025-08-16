@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Building, Plus } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:4000/api/admin';
+const API_BASE_URL = 'https://internalcrm.digitalinclined.in/api/admin';
 
 export const AddBusinessAccount = () => {
   const [formData, setFormData] = useState({

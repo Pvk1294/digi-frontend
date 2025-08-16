@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { Users, Building, Link, Trash2 } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:4000/api/admin';
+const API_BASE_URL = 'https://internalcrm.digitalinclined.in/api/admin';
 
 // Interfaces for our data types
 interface BusinessAccount {

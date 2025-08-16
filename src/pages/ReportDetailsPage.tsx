@@ -26,8 +26,8 @@ export const ReportDetailsPage = () => {
 
         // 3. Construct the full, absolute URL for the PDF
         if (data.pdfUrl) {
-          // Assuming your backend is at http://localhost:4000
-          const backendUrl = 'http://localhost:4000'; 
+          // Assuming your backend is at https://internalcrm.digitalinclined.in/
+          const backendUrl = 'https://internalcrm.digitalinclined.in/'; 
           setFullPdfUrl(`${backendUrl}${data.pdfUrl}`);
         }
 
