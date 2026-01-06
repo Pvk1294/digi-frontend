@@ -9,9 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart3, Search, Filter, Download, Eye, Calendar, FileText, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Report } from '@/types/reports';
-import api from '@/lib/api'; // <-- 1. IMPORT THE API INSTANCE
+import api from '@/lib/api'; 
 
-// Dynamic currency formatting function (no changes here)
 const formatCurrency = (amount: number, currencyCode: string = 'USD') => {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -36,7 +35,6 @@ export const ReportsView = () => {
     const fetchReports = async () => {
       setIsLoading(true);
       try {
-        // --- 2. REFACTORED TO USE THE API INSTANCE ---
         const response = await api.get('/reports');
         setReports(response.data);
       } catch (error: any) {
@@ -49,8 +47,6 @@ export const ReportsView = () => {
     
     fetchReports();
   }, []);
-
-  // --- NO CHANGES TO THE REST OF THE COMPONENT LOGIC ---
 
   const filteredReports = reports.filter(report => {
     const clientName = report.clientName || '';

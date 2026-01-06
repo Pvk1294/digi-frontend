@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "digi-frontend",
     "public": "dist",
     "ignore": [
       "firebase.json",

@@ -31,7 +31,7 @@ export const ReportDeliveryTracker = () => {
     if (!token) return;
     setIsLoading(true);
     try {
-      const response = await fetch('https://internalcrm.digitalinclined.in/api/reports', { // Fetching all reports
+      const response = await fetch('http://localhost:4000/api/reports', { // Fetching all reports
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch reports.');
@@ -52,7 +52,7 @@ export const ReportDeliveryTracker = () => {
   // Function to handle clicking "Mark as Sent"
   const handleMarkAsSent = async (reportId: string) => {
     try {
-      const response = await fetch(`https://internalcrm.digitalinclined.in/api/reports/${reportId}/mark-sent`, {
+      const response = await fetch(`http://localhost:4000/api/reports/${reportId}/mark-sent`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });

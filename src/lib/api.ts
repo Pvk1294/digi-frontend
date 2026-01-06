@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://internalcrm.digitalinclined.in/api', // Your backend URL
+  baseURL: 'http://localhost:4000/api', // Your backend URL
   withCredentials: true
 });
 
