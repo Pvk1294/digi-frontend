@@ -25,14 +25,14 @@ interface ComprehensiveReportData {
   clientName: string;
 }
 interface PdfPayload {
-    reportData: ComprehensiveReportData;
-    clientName: string;
-    adAccountId: string;
-    reportType: string;
-    dateRange: {
-        from: string;
-        to: string;
-    };
+  reportData: ComprehensiveReportData;
+  clientName: string;
+  adAccountId: string;
+  reportType: string;
+  dateRange: {
+    from: string;
+    to: string;
+  };
 }
 interface AdAccount {
   id: string;
@@ -68,7 +68,7 @@ interface AdAccountContextType {
   generateComprehensiveReport: (accountId: string, range: string) => Promise<void>;
   isGeneratingPdf: boolean;
   pdfUrl: string | null;
-  generatePdfReport: (payload: PdfPayload) => Promise<void>; 
+  generatePdfReport: (payload: PdfPayload) => Promise<void>;
   clearComprehensiveReport: () => void;
   updateAccountKeywords: (accountId: string, keywords: string[]) => Promise<void>;
   clearAllData: () => void;
@@ -103,15 +103,15 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       // --- REFACTORED TO USE API INSTANCE ---
       const response = await api.get('/users/me/business-accounts');
       const data: AssignedBusinessAccount[] = response.data;
-      
+
       setAssignedBusinessAccounts(data);
       return data;
     } catch (error: any) {
       console.error('Error in fetchAssignedBusinessAccounts:', error);
-      toast({ 
-        title: "Error", 
-        description: error.response?.data?.message || "Could not fetch business accounts", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Could not fetch business accounts",
+        variant: "destructive"
       });
       return [];
     }
@@ -132,8 +132,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
         : assignedAccounts?.map(acc => String(acc.id)) || [];
 
       if (accountsToSync.length === 0) {
-        toast({ 
-          title: "No accounts assigned", 
+        toast({
+          title: "No accounts assigned",
           description: "You don't have any accounts assigned to sync.",
           variant: "destructive"
         });
@@ -141,8 +141,8 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // --- REFACTORED TO USE API INSTANCE ---
-      const response = await api.post('/facebook/sync-accounts', { 
-        businessAccountIds: accountsToSync 
+      const response = await api.post('/facebook/sync-accounts', {
+        businessAccountIds: accountsToSync
       });
       const responseData = response.data;
 
@@ -157,27 +157,27 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
       const isAdmin = user?.role === 'super_admin';
       const allowedBusinessAccountIds = assignedAccounts?.map(a => a.id) || [];
-      
-      const syncedAccounts = isAdmin 
-        ? responseData.accounts 
-        : responseData.accounts.filter((account: AdAccount) => 
-            allowedBusinessAccountIds.includes(account.businessAccountId)
-          );
-      
+
+      const syncedAccounts = isAdmin
+        ? responseData.accounts
+        : responseData.accounts.filter((account: AdAccount) =>
+          allowedBusinessAccountIds.includes(account.businessAccountId)
+        );
+
       setAdAccounts(syncedAccounts);
-      
-      toast({ 
-        title: "Sync Complete!", 
+
+      toast({
+        title: "Sync Complete!",
         description: `Successfully synced ${syncedAccounts.length} ad accounts.`,
         variant: syncedAccounts.length === 0 ? "destructive" : "default"
       });
-      
+
     } catch (error: any) {
       console.error('Sync failed:', error);
-      toast({ 
-        title: "Sync Failed", 
+      toast({
+        title: "Sync Failed",
         description: error.response?.data?.message || 'Failed to sync accounts',
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -195,20 +195,45 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
       return [accountId, { status: 'failed' }];
     }
   }, []);
-  
-  const fetchAndSetDailyReports = useCallback(async (accounts: AdAccount[]) => {
-    if (isInitialReportFetchDone || accounts.length === 0) return;
-    const loadingReports = new Map<string, ReportState>();
-    accounts.forEach(acc => loadingReports.set(acc.id, { status: 'loading' }));
-    setDailyReports(loadingReports);
-    const results = await Promise.all(accounts.map(acc => fetchReportForAccount(acc.id)));
-    const finalReports = new Map<string, ReportState>();
-    results.forEach(([id, reportState]) => {
-        finalReports.set(id, reportState);
-    });
-    setDailyReports(finalReports);
-    setIsInitialReportFetchDone(true);
-  }, [isInitialReportFetchDone, fetchReportForAccount]);
+
+  const fetchAndSetDailyReports = useCallback(
+    async (accounts: AdAccount[]) => {
+      if (accounts.length === 0) return;
+
+      // 1️⃣ Detect accounts that are NOT fetched yet
+      const accountsToFetch = accounts.filter(acc => {
+        const existing = dailyReports.get(acc.id);
+        return !existing || existing.status === 'pending';
+      });
+
+      if (accountsToFetch.length === 0) return;
+
+      // 2️⃣ Set loading state IMMEDIATELY
+      setDailyReports(prev => {
+        const updated = new Map(prev);
+        accountsToFetch.forEach(acc => {
+          updated.set(acc.id, { status: 'loading' });
+        });
+        return updated;
+      });
+
+      // 3️⃣ Fetch reports (parallel but safe)
+      const results = await Promise.all(
+        accountsToFetch.map(acc => fetchReportForAccount(acc.id))
+      );
+
+      // 4️⃣ Merge results
+      setDailyReports(prev => {
+        const updated = new Map(prev);
+        results.forEach(([id, reportState]) => {
+          updated.set(id, reportState);
+        });
+        return updated;
+      });
+    },
+    [dailyReports, fetchReportForAccount]
+  );
+
 
   const refreshSingleDailyReport = useCallback(async (accountId: string) => {
     setDailyReports(prev => new Map(prev).set(accountId, { status: 'loading' }));
@@ -221,16 +246,16 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     setIsGeneratingReport(true);
     setComprehensiveReport(null);
     try {
-        // --- REFACTORED TO USE API INSTANCE ---
-        const response = await api.post('/facebook/comprehensive-report', { accountId, range });
-        const reportData: ComprehensiveReportData = response.data;
-        const client = adAccounts.find(acc => acc.id === accountId);
-        setComprehensiveReport({ ...reportData, clientName: client?.name || 'Unknown Client' });
-        toast({ title: "Report Generated", description: "Comprehensive report is ready." });
+      // --- REFACTORED TO USE API INSTANCE ---
+      const response = await api.post('/facebook/comprehensive-report', { accountId, range });
+      const reportData: ComprehensiveReportData = response.data;
+      const client = adAccounts.find(acc => acc.id === accountId);
+      setComprehensiveReport({ ...reportData, clientName: client?.name || 'Unknown Client' });
+      toast({ title: "Report Generated", description: "Comprehensive report is ready." });
     } catch (error: any) {
-        toast({ title: "Generation Failed", description: error.response?.data?.message || "Failed to generate report.", variant: "destructive" });
+      toast({ title: "Generation Failed", description: error.response?.data?.message || "Failed to generate report.", variant: "destructive" });
     } finally {
-        setIsGeneratingReport(false);
+      setIsGeneratingReport(false);
     }
   }, [adAccounts]);
 
@@ -238,44 +263,44 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     setIsGeneratingPdf(true);
     setPdfUrl(null);
     try {
-        // --- REFACTORED TO USE API INSTANCE ---
-        const response = await api.post('/reports/generate-pdf', payload, {
-          responseType: 'blob', // Important for handling file downloads
-        });
-        const blob = response.data;
-        const url = window.URL.createObjectURL(blob);
-        setPdfUrl(url);
-        toast({ title: "PDF Ready", description: "Your PDF report is ready for download." });
+      // --- REFACTORED TO USE API INSTANCE ---
+      const response = await api.post('/reports/generate-pdf', payload, {
+        responseType: 'blob', // Important for handling file downloads
+      });
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+      setPdfUrl(url);
+      toast({ title: "PDF Ready", description: "Your PDF report is ready for download." });
     } catch (error: any) {
-        toast({ title: "PDF Failed", description: error.response?.data?.message || "PDF generation failed.", variant: "destructive" });
+      toast({ title: "PDF Failed", description: error.response?.data?.message || "PDF generation failed.", variant: "destructive" });
     } finally {
-        setIsGeneratingPdf(false);
+      setIsGeneratingPdf(false);
     }
   }, []);
 
   const clearComprehensiveReport = useCallback(() => {
-      setComprehensiveReport(null);
-      setPdfUrl(null);
+    setComprehensiveReport(null);
+    setPdfUrl(null);
   }, []);
 
   const updateAccountKeywords = useCallback(async (accountId: string, keywords: string[]) => {
     try {
-        // --- REFACTORED TO USE API INSTANCE ---
-        const response = await api.put(`/facebook/accounts/${accountId}/keywords`, { keywords });
-        const data = response.data;
-        if (!data.success) {
-            throw new Error(data.message || 'Failed to update keywords.');
-        }
-        setAdAccounts(prevAccounts => 
-            prevAccounts.map(account => 
-                account.id === accountId 
-                    ? { ...account, productKeywords: keywords } 
-                    : account
-            )
-        );
-        toast({ title: "Success", description: "Keywords updated." });
+      // --- REFACTORED TO USE API INSTANCE ---
+      const response = await api.put(`/facebook/accounts/${accountId}/keywords`, { keywords });
+      const data = response.data;
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to update keywords.');
+      }
+      setAdAccounts(prevAccounts =>
+        prevAccounts.map(account =>
+          account.id === accountId
+            ? { ...account, productKeywords: keywords }
+            : account
+        )
+      );
+      toast({ title: "Success", description: "Keywords updated." });
     } catch (error: any) {
-        toast({ title: "Update Failed", description: error.response?.data?.message || error.message, variant: "destructive" });
+      toast({ title: "Update Failed", description: error.response?.data?.message || error.message, variant: "destructive" });
     }
   }, []);
 
@@ -297,7 +322,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
     comprehensiveReport, isGeneratingReport, generateComprehensiveReport,
     isGeneratingPdf,
     pdfUrl,
-    generatePdfReport, 
+    generatePdfReport,
     clearComprehensiveReport,
     updateAccountKeywords,
     clearAllData,

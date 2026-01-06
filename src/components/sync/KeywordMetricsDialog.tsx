@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,25 +23,64 @@ interface Props {
   account: { id: string; name: string } | null;
 }
 
+interface ResultData {
+  totalSpend: number;
+  totalConversions: number;
+  costPerConversion: number;
+}
+
 export const KeywordMetricsDialog = ({ open, onClose, account }: Props) => {
   const { token } = useAuth();
 
   const [keyword, setKeyword] = useState("");
   const [range, setRange] = useState("7days");
+
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ResultData | null>(null);
+  const [noResult, setNoResult] = useState(false);
   const [error, setError] = useState("");
 
+  /* -------------------------------------------------
+     RESET STATE WHEN:
+     - dialog opens
+     - account changes
+  -------------------------------------------------- */
+  useEffect(() => {
+    if (open) {
+      setKeyword("");
+      setRange("7days");
+      setResult(null);
+      setNoResult(false);
+      setError("");
+      setLoading(false);
+    }
+  }, [open, account?.id]);
+
+  /* -------------------------------------------------
+     CLEAR RESULT WHEN INPUT CHANGES
+  -------------------------------------------------- */
+  useEffect(() => {
+    setResult(null);
+    setNoResult(false);
+    setError("");
+  }, [keyword, range]);
+
+  /* -------------------------------------------------
+     ANALYZE KEYWORD
+  -------------------------------------------------- */
   const analyzeKeyword = async () => {
     if (!keyword.trim() || !account) return;
 
     setLoading(true);
-    setError("");
     setResult(null);
+    setNoResult(false);
+    setError("");
 
     try {
       const res = await fetch(
-        `http://localhost:4000/api/facebook/accounts/${account.id}/keyword-metrics?keyword=${keyword}&range=${range}`,
+        `http://localhost:4000/api/facebook/accounts/${account.id}/keyword-metrics?keyword=${encodeURIComponent(
+          keyword
+        )}&range=${range}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -51,13 +90,23 @@ export const KeywordMetricsDialog = ({ open, onClose, account }: Props) => {
 
       const data = await res.json();
 
+      // Backend says: no result
+      if (data?.message === "No result found") {
+        setNoResult(true);
+        return;
+      }
+
       if (!res.ok || data.success === false) {
         throw new Error(data.message || "Failed to fetch metrics");
       }
 
-      setResult(data);
+      setResult({
+        totalSpend: data.totalSpend,
+        totalConversions: data.totalConversions,
+        costPerConversion: data.costPerConversion,
+      });
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -102,17 +151,31 @@ export const KeywordMetricsDialog = ({ open, onClose, account }: Props) => {
           </Button>
         </div>
 
+        {/* Loading */}
+        {loading && (
+          <p className="text-sm text-muted-foreground text-center mt-3">
+            Analyzing keyword performance…
+          </p>
+        )}
+
+        {/* No Result */}
+        {noResult && !loading && (
+          <div className="mt-4 rounded-md border bg-gray-50 p-4 text-sm text-center text-muted-foreground">
+            No result found for this keyword and date range.
+          </div>
+        )}
+
         {/* Error */}
-        {error && (
-          <p className="text-sm text-red-600 mt-2">{error}</p>
+        {error && !loading && (
+          <p className="text-sm text-red-600 mt-2 text-center">{error}</p>
         )}
 
         {/* Result */}
-        {result && (
+        {result && !noResult && !loading && (
           <div className="mt-4 rounded-md border bg-gray-50 p-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Total Spend</span>
-              <b>₹{result.totalSpend}</b>
+              <b>₹{result.totalSpend.toFixed(2)}</b>
             </div>
             <div className="flex justify-between">
               <span>Conversions</span>
@@ -120,7 +183,7 @@ export const KeywordMetricsDialog = ({ open, onClose, account }: Props) => {
             </div>
             <div className="flex justify-between">
               <span>Cost / Conversion</span>
-              <b>₹{result.costPerConversion}</b>
+              <b>₹{result.costPerConversion.toFixed(2)}</b>
             </div>
           </div>
         )}

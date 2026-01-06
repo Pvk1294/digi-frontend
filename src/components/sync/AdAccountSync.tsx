@@ -23,6 +23,9 @@ import {
 
 import { KeywordMetricsDialog } from "./KeywordMetricsDialog";
 
+/* ---------------- Pagination config ---------------- */
+const ITEMS_PER_PAGE = 20;
+
 export const AdAccountSync = () => {
   const {
     adAccounts,
@@ -35,12 +38,27 @@ export const AdAccountSync = () => {
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
 
-  // ✅ POPUP STATE (MUST BE INSIDE COMPONENT)
+  /* ---------------- Popup state ---------------- */
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [activeAccount, setActiveAccount] = useState<{
     id: string;
     name: string;
   } | null>(null);
+
+  /* ---------------- Pagination state ---------------- */
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(adAccounts.length / ITEMS_PER_PAGE);
+
+  const paginatedAccounts = adAccounts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  /* Reset page when data changes (sync) */
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [adAccounts]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -136,7 +154,7 @@ export const AdAccountSync = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {adAccounts.map((account) => (
+                {paginatedAccounts.map((account) => (
                   <TableRow key={account.id}>
                     <TableCell>{account.name}</TableCell>
                     <TableCell className="font-mono text-sm">
@@ -186,9 +204,50 @@ export const AdAccountSync = () => {
                 ))}
               </TableBody>
             </Table>
+
+            {/* ---------------- Pagination UI ---------------- */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-6">
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                  >
+                    Prev
+                  </Button>
+
+                  {Array.from({ length: totalPages }).map((_, index) => {
+                    const page = index + 1;
+                    return (
+                      <Button
+                        key={page}
+                        size="sm"
+                        variant={page === currentPage ? "default" : "outline"}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
+
+      {/* Keyword popup */}
       <KeywordMetricsDialog
         open={keywordDialogOpen}
         onClose={() => setKeywordDialogOpen(false)}
