@@ -42,6 +42,12 @@ const chartConfig = {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
+const SPEND_COLORS = {
+  total: '#60A5FA',   // soft blue
+  testing: '#F59E0B', // amber
+  scaling: '#10B981', // green
+};
+
 const formatCurrency = (amount: number, currencyCode: string = 'USD') => {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -284,15 +290,69 @@ export const ReportGenerator = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis tickFormatter={(v) => formatCurrency(v, comprehensiveReport.summary.currency)} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+
+                    <ChartTooltip
+                      content={({ payload, label }) => {
+                        if (!payload || payload.length === 0) return null;
+
+                        const getValue = (key: string): number => {
+                          const raw = payload.find(p => p.dataKey === key)?.value;
+                          return typeof raw === 'number' ? raw : Number(raw) || 0;
+                        };
+
+                        const total = getValue('spend');
+                        const testing = getValue('testingSpend');
+                        const scaling = getValue('scalingSpend');
+
+                        return (
+                          <div className="rounded-md border bg-white p-3 text-sm shadow">
+                            <div className="font-medium mb-1">{label}</div>
+
+                            <div className="text-blue-600">
+                              Total: {formatCurrency(total, comprehensiveReport.summary.currency)}
+                            </div>
+
+                            <div className="text-amber-600">
+                              Testing: {formatCurrency(testing, comprehensiveReport.summary.currency)}
+                            </div>
+
+                            <div className="text-green-600">
+                              Scaling: {formatCurrency(scaling, comprehensiveReport.summary.currency)}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    {/* Total spend (background reference) */}
                     <Area
                       type="monotone"
                       dataKey="spend"
-                      stroke={chartConfig.spend.color}
-                      fill={chartConfig.spend.color}
-                      fillOpacity={0.3}
+                      stroke={SPEND_COLORS.total}
+                      fill={SPEND_COLORS.total}
+                      fillOpacity={0.15}
+                      strokeWidth={2}
+                    />
+
+                    {/* Testing spend */}
+                    <Line
+                      type="monotone"
+                      dataKey="testingSpend"
+                      stroke={SPEND_COLORS.testing}
+                      strokeWidth={2.5}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+
+                    {/* Scaling spend */}
+                    <Line
+                      type="monotone"
+                      dataKey="scalingSpend"
+                      stroke={SPEND_COLORS.scaling}
+                      strokeWidth={2.5}
+                      dot={false}
                     />
                   </AreaChart>
+
                 </ChartContainer>
               </CardContent>
             </Card>

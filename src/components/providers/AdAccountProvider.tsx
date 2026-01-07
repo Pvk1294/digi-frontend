@@ -262,21 +262,39 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
   const generatePdfReport = useCallback(async (payload: PdfPayload) => {
     setIsGeneratingPdf(true);
     setPdfUrl(null);
+
     try {
-      // --- REFACTORED TO USE API INSTANCE ---
-      const response = await api.post('/reports/generate-pdf', payload, {
-        responseType: 'blob', // Important for handling file downloads
+      const response = await api.post('/reports/generate-pdf', payload);
+
+      const fileUrl = response.data?.url;
+      if (!fileUrl) {
+        throw new Error('PDF URL not returned');
+      }
+
+      // absolute URL
+      const fullUrl = `${import.meta.env.VITE_API_BASE_URL}${fileUrl}`;
+
+      setPdfUrl(fullUrl);
+
+      // ✅ AUTO OPEN (safe)
+      window.open(fullUrl, '_blank');
+
+      toast({
+        title: 'PDF Ready',
+        description: 'Report opened in new tab',
       });
-      const blob = response.data;
-      const url = window.URL.createObjectURL(blob);
-      setPdfUrl(url);
-      toast({ title: "PDF Ready", description: "Your PDF report is ready for download." });
+
     } catch (error: any) {
-      toast({ title: "PDF Failed", description: error.response?.data?.message || "PDF generation failed.", variant: "destructive" });
+      toast({
+        title: 'PDF Failed',
+        description: error.response?.data?.message || 'PDF generation failed',
+        variant: 'destructive',
+      });
     } finally {
       setIsGeneratingPdf(false);
     }
   }, []);
+
 
   const clearComprehensiveReport = useCallback(() => {
     setComprehensiveReport(null);
