@@ -20,7 +20,6 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import {
   Area,
-  AreaChart,
   ComposedChart,
   Bar,
   BarChart,
@@ -480,7 +479,7 @@ export const ReportGenerator = () => {
                 </Button>
               ) : pdfUrl ? (
                 <Button asChild className="bg-green-600 hover:bg-green-700">
-                  <a href={pdfUrl} download={`report-${selectedClient}.pdf`} rel="noopener noreferrer">
+                  <a href={pdfUrl} download={`report-${selectedClient}.pdf`} target="_blank" rel="noopener noreferrer">
                     <FileDown className="mr-2 h-4 w-4" />
                     Download PDF
                   </a>

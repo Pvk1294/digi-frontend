@@ -261,35 +261,57 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
 
   const generatePdfReport = useCallback(async (payload: PdfPayload) => {
     setIsGeneratingPdf(true);
-    setPdfUrl(null);
+    setPdfUrl(null); // Reset any old URL
 
     try {
-      const response = await api.post('/reports/generate-pdf', payload);
+      // 1. Send request with a longer timeout (e.g., 2 minutes)
+      // Standard axios timeout is often too short for PDF generation
+      const response = await api.post('/reports/generate-pdf', payload, {
+        timeout: 120000, // 120,000ms = 2 minutes
+      });
 
       const fileUrl = response.data?.url;
       if (!fileUrl) {
         throw new Error('PDF URL not returned');
       }
 
-      // absolute URL
-      const fullUrl = `${import.meta.env.VITE_API_BASE_URL}${fileUrl}`;
+      let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+
+      if (baseUrl.endsWith('/api')) {
+        baseUrl = baseUrl.slice(0, -4);
+      }
+
+      const fullUrl = `${baseUrl}${fileUrl}`;
 
       setPdfUrl(fullUrl);
 
-      // ✅ AUTO OPEN (safe)
-      window.open(fullUrl, '_blank');
-
       toast({
-        title: 'PDF Ready',
-        description: 'Report opened in new tab',
+        title: 'Report Ready',
+        description: 'Click the download button to save your PDF.',
+        variant: "default", // distinct from success/error
       });
 
     } catch (error: any) {
-      toast({
-        title: 'PDF Failed',
-        description: error.response?.data?.message || 'PDF generation failed',
-        variant: 'destructive',
-      });
+      console.error("PDF Generation Error:", error);
+
+      // Handle timeout specifically if possible
+      if (error.code === 'ECONNABORTED') {
+        toast({
+          title: 'Taking Longer than Expected',
+          description: 'The report is still generating in the background. Please check "View Reports" in a minute.',
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: 'PDF Failed',
+          description: error.response?.data?.message || 'PDF generation failed',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsGeneratingPdf(false);
     }
