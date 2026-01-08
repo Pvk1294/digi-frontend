@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import {
   Area,
   AreaChart,
+  ComposedChart,
   Bar,
   BarChart,
   Cell,
@@ -285,45 +286,45 @@ export const ReportGenerator = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="min-h-[220px] sm:min-h-[300px]">
-                  <AreaChart data={comprehensiveReport.performance}>
+                {/* Inside Spend Trend CardContent */}
+                <ChartContainer config={chartConfig} className="min-h-[220px] sm:min-h-[300px]" >
+                  {/* CHANGE THIS TAG FROM AreaChart TO ComposedChart */}
+                  < ComposedChart data={comprehensiveReport.performance} >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis tickFormatter={(v) => formatCurrency(v, comprehensiveReport.summary.currency)} />
 
+                    {/* Your updated Tooltip from the previous fix goes here */}
                     <ChartTooltip
-                      content={({ payload, label }) => {
-                        if (!payload || payload.length === 0) return null;
+                      content={
+                        ({ payload, label }) => {
+                          if (!payload || payload.length === 0) return null;
+                          const data = payload[0].payload;
+                          const total = data.spend || 0;
+                          const testing = data.testingSpend || 0; // Access the JSON key directly
+                          const scaling = data.scalingSpend || 0;
+                          return (
+                            <div className="rounded-md border bg-white p-3 text-sm shadow">
+                              <div className="font-medium mb-1">{label}</div>
 
-                        const getValue = (key: string): number => {
-                          const raw = payload.find(p => p.dataKey === key)?.value;
-                          return typeof raw === 'number' ? raw : Number(raw) || 0;
-                        };
+                              <div className="text-blue-600">
+                                Total: {formatCurrency(total, comprehensiveReport.summary.currency)}
+                              </div>
 
-                        const total = getValue('spend');
-                        const testing = getValue('testingSpend');
-                        const scaling = getValue('scalingSpend');
+                              <div className="text-amber-600">
+                                Testing: {formatCurrency(testing, comprehensiveReport.summary.currency)}
+                              </div>
 
-                        return (
-                          <div className="rounded-md border bg-white p-3 text-sm shadow">
-                            <div className="font-medium mb-1">{label}</div>
-
-                            <div className="text-blue-600">
-                              Total: {formatCurrency(total, comprehensiveReport.summary.currency)}
+                              <div className="text-green-600">
+                                Scaling: {formatCurrency(scaling, comprehensiveReport.summary.currency)}
+                              </div>
                             </div>
-
-                            <div className="text-amber-600">
-                              Testing: {formatCurrency(testing, comprehensiveReport.summary.currency)}
-                            </div>
-
-                            <div className="text-green-600">
-                              Scaling: {formatCurrency(scaling, comprehensiveReport.summary.currency)}
-                            </div>
-                          </div>
-                        );
-                      }}
+                          );
+                        }
+                      }
                     />
-                    {/* Total spend (background reference) */}
+
+                    {/* 1. Total Spend (Background Area) */}
                     <Area
                       type="monotone"
                       dataKey="spend"
@@ -333,26 +334,25 @@ export const ReportGenerator = () => {
                       strokeWidth={2}
                     />
 
-                    {/* Testing spend */}
-                    <Line
+                    {/* 2. Testing Spend (Dashed Orange Line) */}
+                    < Line
                       type="monotone"
                       dataKey="testingSpend"
                       stroke={SPEND_COLORS.testing}
                       strokeWidth={2.5}
-                      strokeDasharray="5 5"
+                      strokeDasharray="5 5" // Makes it dashed to differentiate
                       dot={false}
                     />
 
-                    {/* Scaling spend */}
-                    <Line
+                    {/* 3. Scaling Spend (Solid Green Line) */}
+                    < Line
                       type="monotone"
                       dataKey="scalingSpend"
                       stroke={SPEND_COLORS.scaling}
                       strokeWidth={2.5}
                       dot={false}
                     />
-                  </AreaChart>
-
+                  </ComposedChart>
                 </ChartContainer>
               </CardContent>
             </Card>
