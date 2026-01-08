@@ -479,7 +479,7 @@ export const ReportGenerator = () => {
                 </Button>
               ) : pdfUrl ? (
                 <Button asChild className="bg-green-600 hover:bg-green-700">
-                  <a href={pdfUrl} download={`report-${selectedClient}.pdf`} target="_blank" rel="noopener noreferrer">
+                  <a href={pdfUrl} download="_blank" target="_blank" rel="noopener noreferrer">
                     <FileDown className="mr-2 h-4 w-4" />
                     Download PDF
                   </a>
