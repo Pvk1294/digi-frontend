@@ -15,6 +15,8 @@ import {
   RefreshCw,
   FileDown,
   MessageSquare,
+  ShoppingCart,
+  Target
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -31,16 +33,20 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
+  Legend
 } from 'recharts';
 import { useAdAccounts } from '@/components/providers/AdAccountProvider';
 
+// --- UPDATED CONFIG ---
 const chartConfig = {
   spend: { label: 'Spend', color: '#3b82f6' },
   leads: { label: 'Leads', color: '#10b981' },
   cpl: { label: 'CPL', color: '#f59e0b' },
+  purchases: { label: 'Purchases', color: '#8b5cf6' }, // Purple
+  cpp: { label: 'CPP', color: '#d946ef' },           // Fuchsia
 };
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#d946ef'];
 
 const SPEND_COLORS = {
   total: '#60A5FA',   // soft blue
@@ -133,6 +139,11 @@ export const ReportGenerator = () => {
     generatePdfReport(payload);
   };
 
+  // --- LOGIC FOR DYNAMIC DISPLAY ---
+  const reportType = comprehensiveReport?.summary?.reportType || 'LEAD';
+  const showLeads = reportType === 'LEAD' || reportType === 'HYBRID';
+  const showPurchases = reportType === 'PURCHASE' || reportType === 'HYBRID';
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Controls */}
@@ -218,7 +229,9 @@ export const ReportGenerator = () => {
       {/* Summary tiles */}
       {comprehensiveReport && (
         <div className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
+          <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4`}>
+            
+            {/* 1. Spend (Always Visible) */}
             <Card>
               <CardContent className="p-4">
                 <div className="text-xl sm:text-2xl font-bold">
@@ -227,20 +240,48 @@ export const ReportGenerator = () => {
                 <p className="text-xs text-gray-600">Total Spend</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xl sm:text-2xl font-bold">{comprehensiveReport.summary.totalLeads}</div>
-                <p className="text-xs text-gray-600">Total Leads</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xl sm:text-2xl font-bold">
-                  {formatCurrency(comprehensiveReport.summary.avgCpl, comprehensiveReport.summary.currency)}
-                </div>
-                <p className="text-xs text-gray-600">Avg CPL</p>
-              </CardContent>
-            </Card>
+
+            {/* 2. Leads Logic */}
+            {showLeads && (
+              <>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-xl sm:text-2xl font-bold text-emerald-600">{comprehensiveReport.summary.totalLeads}</div>
+                    <p className="text-xs text-gray-600">Total Leads</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-xl sm:text-2xl font-bold text-amber-500">
+                      {formatCurrency(comprehensiveReport.summary.avgCpl, comprehensiveReport.summary.currency)}
+                    </div>
+                    <p className="text-xs text-gray-600">Avg CPL</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* 3. Purchases Logic */}
+            {showPurchases && (
+              <>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-xl sm:text-2xl font-bold text-purple-600">{comprehensiveReport.summary.totalPurchases}</div>
+                    <p className="text-xs text-gray-600">Total Sales</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-xl sm:text-2xl font-bold text-fuchsia-500">
+                      {formatCurrency(comprehensiveReport.summary.avgCpp, comprehensiveReport.summary.currency)}
+                    </div>
+                    <p className="text-xs text-gray-600">Avg CPA</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* 4. Common Metrics */}
             <Card>
               <CardContent className="p-4">
                 <div className="text-xl sm:text-2xl font-bold">
@@ -265,102 +306,60 @@ export const ReportGenerator = () => {
                 <p className="text-xs text-gray-600">Clicks</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-xl sm:text-2xl font-bold">
-                  {comprehensiveReport.summary.totalLandingPageViews?.toLocaleString() ?? '0'}
-                </div>
-                <p className="text-xs text-gray-600">Landing Page Views</p>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            
+            {/* CHART 1: SPEND TREND */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
-                  Spend Trend
+                  Spend Breakdown
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Inside Spend Trend CardContent */}
                 <ChartContainer config={chartConfig} className="min-h-[220px] sm:min-h-[300px]" >
-                  {/* CHANGE THIS TAG FROM AreaChart TO ComposedChart */}
-                  < ComposedChart data={comprehensiveReport.performance} >
+                  <ComposedChart data={comprehensiveReport.performance} >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis tickFormatter={(v) => formatCurrency(v, comprehensiveReport.summary.currency)} />
-
-                    {/* Your updated Tooltip from the previous fix goes here */}
                     <ChartTooltip
-                      content={
-                        ({ payload, label }) => {
+                      content={({ payload, label }) => {
                           if (!payload || payload.length === 0) return null;
                           const data = payload[0].payload;
-                          const total = data.spend || 0;
-                          const testing = data.testingSpend || 0; // Access the JSON key directly
-                          const scaling = data.scalingSpend || 0;
                           return (
                             <div className="rounded-md border bg-white p-3 text-sm shadow">
                               <div className="font-medium mb-1">{label}</div>
-
                               <div className="text-blue-600">
-                                Total: {formatCurrency(total, comprehensiveReport.summary.currency)}
+                                Total: {formatCurrency(data.spend, comprehensiveReport.summary.currency)}
                               </div>
-
                               <div className="text-amber-600">
-                                Testing: {formatCurrency(testing, comprehensiveReport.summary.currency)}
+                                Testing: {formatCurrency(data.testingSpend, comprehensiveReport.summary.currency)}
                               </div>
-
                               <div className="text-green-600">
-                                Scaling: {formatCurrency(scaling, comprehensiveReport.summary.currency)}
+                                Scaling: {formatCurrency(data.scalingSpend, comprehensiveReport.summary.currency)}
                               </div>
                             </div>
                           );
                         }
                       }
                     />
-
-                    {/* 1. Total Spend (Background Area) */}
-                    <Area
-                      type="monotone"
-                      dataKey="spend"
-                      stroke={SPEND_COLORS.total}
-                      fill={SPEND_COLORS.total}
-                      fillOpacity={0.15}
-                      strokeWidth={2}
-                    />
-
-                    {/* 2. Testing Spend (Dashed Orange Line) */}
-                    < Line
-                      type="monotone"
-                      dataKey="testingSpend"
-                      stroke={SPEND_COLORS.testing}
-                      strokeWidth={2.5}
-                      strokeDasharray="5 5" // Makes it dashed to differentiate
-                      dot={false}
-                    />
-
-                    {/* 3. Scaling Spend (Solid Green Line) */}
-                    < Line
-                      type="monotone"
-                      dataKey="scalingSpend"
-                      stroke={SPEND_COLORS.scaling}
-                      strokeWidth={2.5}
-                      dot={false}
-                    />
+                    <Area type="monotone" dataKey="spend" stroke={SPEND_COLORS.total} fill={SPEND_COLORS.total} fillOpacity={0.15} strokeWidth={2} />
+                    <Line type="monotone" dataKey="testingSpend" stroke={SPEND_COLORS.testing} strokeWidth={2.5} strokeDasharray="5 5" dot={false} />
+                    <Line type="monotone" dataKey="scalingSpend" stroke={SPEND_COLORS.scaling} strokeWidth={2.5} dot={false} />
                   </ComposedChart>
                 </ChartContainer>
               </CardContent>
             </Card>
 
+            {/* CHART 2: PERFORMANCE (LEADS VS PURCHASES) */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Leads Performance
+                  <Target className="h-4 w-4" />
+                  {showLeads && showPurchases ? 'Conversion Performance' : showLeads ? 'Leads Performance' : 'Sales Performance'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -370,15 +369,21 @@ export const ReportGenerator = () => {
                     <XAxis dataKey="date" />
                     <YAxis />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="leads" fill={chartConfig.leads.color} />
+                    <Legend />
+                    {showLeads && <Bar dataKey="leads" name="Leads" fill={chartConfig.leads.color} radius={[4, 4, 0, 0]} />}
+                    {showPurchases && <Bar dataKey="purchases" name="Purchases" fill={chartConfig.purchases.color} radius={[4, 4, 0, 0]} />}
                   </BarChart>
                 </ChartContainer>
               </CardContent>
             </Card>
 
+            {/* CHART 3: COST EFFICIENCY TREND */}
             <Card>
               <CardHeader>
-                <CardTitle>Cost Per Lead Trend</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                   Cost Efficiency Trend
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="min-h-[220px] sm:min-h-[300px]">
@@ -387,18 +392,19 @@ export const ReportGenerator = () => {
                     <XAxis dataKey="date" />
                     <YAxis tickFormatter={(v) => formatCurrency(v, comprehensiveReport.summary.currency)} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line
-                      type="monotone"
-                      dataKey="cpl"
-                      stroke={chartConfig.cpl.color}
-                      strokeWidth={3}
-                      dot={{ fill: chartConfig.cpl.color }}
-                    />
+                    <Legend />
+                    {showLeads && (
+                      <Line type="monotone" dataKey="cpl" name="Cost Per Lead" stroke={chartConfig.cpl.color} strokeWidth={3} dot={{ fill: chartConfig.cpl.color }} />
+                    )}
+                    {showPurchases && (
+                      <Line type="monotone" dataKey="cpp" name="Cost Per Purchase" stroke={chartConfig.cpp.color} strokeWidth={3} dot={{ fill: chartConfig.cpp.color }} />
+                    )}
                   </LineChart>
                 </ChartContainer>
               </CardContent>
             </Card>
 
+            {/* CHART 4: PIE DISTRIBUTION */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
