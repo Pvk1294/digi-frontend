@@ -7,6 +7,8 @@ import { ArrowLeft, Loader2, FileWarning, FileDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import api from '@/lib/api'; // 1. Use the central api instance
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 export const ReportDetailsPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
@@ -26,7 +28,7 @@ export const ReportDetailsPage = () => {
 
         // 3. Construct the full, absolute URL for the PDF
         if (data.pdfUrl) {
-          const backendUrl = 'http://localhost:4000/'; 
+          const backendUrl = `${API_BASE_URL}`; 
           setFullPdfUrl(`${backendUrl}${data.pdfUrl}`);
         }
 

@@ -275,7 +275,7 @@ export const AdAccountProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('PDF URL not returned');
       }
 
-      let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+      let baseUrl = import.meta.env.VITE_API_BASE_URL;
 
       if (baseUrl.endsWith('/')) {
         baseUrl = baseUrl.slice(0, -1);

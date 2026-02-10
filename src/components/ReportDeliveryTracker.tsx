@@ -33,6 +33,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './auth/AuthProvider';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 interface DeliveryReport {
   id: string;
   clientName: string;
@@ -58,7 +60,7 @@ export const ReportDeliveryTracker = () => {
     if (!token) return;
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:4000/api/reports', {
+      const response = await fetch(`${API_BASE_URL}/api/reports`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to fetch reports.');
@@ -107,7 +109,7 @@ export const ReportDeliveryTracker = () => {
   const handleMarkAsSent = async (reportId: string) => {
     try {
       const response = await fetch(
-        `http://localhost:4000/api/reports/${reportId}/mark-sent`,
+        `${API_BASE_URL}/api/reports/${reportId}/mark-sent`,
         {
           method: 'PUT',
           headers: { Authorization: `Bearer ${token}` },

@@ -1,8 +1,10 @@
 // src/lib/api.ts
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: 'http://localhost:4000/api', // Your backend URL
+  baseURL: `${API_BASE_URL}/api`, // Your backend URL
   withCredentials: true
 });
 

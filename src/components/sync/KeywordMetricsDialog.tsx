@@ -17,6 +17,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -78,7 +80,7 @@ export const KeywordMetricsDialog = ({ open, onClose, account }: Props) => {
 
     try {
       const res = await fetch(
-        `http://localhost:4000/api/facebook/accounts/${account.id}/keyword-metrics?keyword=${encodeURIComponent(
+        `${API_BASE_URL}/api/facebook/accounts/${account.id}/keyword-metrics?keyword=${encodeURIComponent(
           keyword
         )}&range=${range}`,
         {
