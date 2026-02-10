@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /* -------------------- Types -------------------- */
 
@@ -44,11 +44,9 @@ export const AssignmentManager = () => {
     name: string;
   } | null>(null);
 
-  /* -------------------- Fetch Business Accounts -------------------- */
-
   const fetchBusinessAccounts = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/business-accounts`);
+      const response = await fetch(`${API_BASE_URL}/api/admin/business-accounts`);
       if (!response.ok) throw new Error('Failed to fetch business accounts');
       const data = await response.json();
       setBusinessAccounts(data);
@@ -77,7 +75,7 @@ export const AssignmentManager = () => {
     const fetchAssignmentsForAccount = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/business-accounts/${selectedAccountId}/assignments`
+          `${API_BASE_URL}/api/admin/business-accounts/${selectedAccountId}/assignments`
         );
         if (!response.ok) throw new Error('Failed to fetch assignments');
         const data = await response.json();
@@ -116,7 +114,7 @@ export const AssignmentManager = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/business-accounts/${selectedAccountId}/assignments`,
+        `${API_BASE_URL}/api/admin/business-accounts/${selectedAccountId}/assignments`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -145,7 +143,7 @@ export const AssignmentManager = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/business-accounts/${deleteTarget.id}`,
+        `${API_BASE_URL}/api/admin/business-accounts/${deleteTarget.id}`,
         { method: 'DELETE' }
       );
 

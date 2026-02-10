@@ -7,7 +7,7 @@ import { ArrowLeft, Loader2, FileWarning, FileDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import api from '@/lib/api'; // 1. Use the central api instance
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const ReportDetailsPage = () => {
   const { reportId } = useParams<{ reportId: string }>();

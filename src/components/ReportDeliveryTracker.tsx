@@ -33,7 +33,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './auth/AuthProvider';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface DeliveryReport {
   id: string;
