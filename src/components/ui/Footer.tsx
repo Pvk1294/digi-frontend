@@ -22,35 +22,26 @@ export const Footer = () => {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Mail className="h-4 w-4" />
-                <span>support@digitalinclined.com</span>
+                <span>admin@xscalemedia.com</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Phone className="h-4 w-4" />
-                <span>+91 9105138374</span>
+                <span>+91 9111353425</span>
               </div>
             </div>
           </div>
           
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
-              Our Offices
+              Our Office
             </h3>
             <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex items-start gap-2 text-sm text-gray-600">
                   <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">🇺🇸 United States</p>
-                    <p>Digital Inclined LLC MBR<br />30 Ngould St Ste R<br />Sheridan, WY 82801</p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div>
                     <p className="font-medium">🇮🇳 India</p>
-                    <p>B-23 Ground Floor Office<br />B Block, Noida Sector 2<br />Noida – 201301</p>
+                    <p>A 75 Ashok Vihar Colony<br /> Ring Road Number 2 Gondwara<br />Raipur Chhattisgarh - 4932211</p>
                   </div>
                 </div>
               </div>
@@ -61,7 +52,7 @@ export const Footer = () => {
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-500">
-              © {new Date().getFullYear()} DigitalInclined. All rights reserved.
+              © {new Date().getFullYear()} X Scale Media. All rights reserved.
             </p>
             <div className="mt-2 md:mt-0 flex space-x-6">
               <a href="#" className="text-sm text-gray-500 hover:text-gray-900">Privacy Policy</a>
