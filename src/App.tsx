@@ -11,7 +11,8 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import DashboardPage from "./pages/DashboardPage";
 import AdminSecurityPage from "./components/admin/AdminSecurityPage";
 import { ReportsView } from "./components/reports/ReportsView";
-import { ReportDetailsPage } from "./pages/ReportDetailsPage"; // 1. IMPORT THE NEW PAGE
+import { ReportDetailsPage } from "./pages/ReportDetailsPage";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 const queryClient = new QueryClient();
 
@@ -39,11 +40,13 @@ const App = () => (
                 path="/admin/security"
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                    <AdminSecurityPage />
+                    <DashboardLayout>
+                      <AdminSecurityPage />
+                    </DashboardLayout>
                   </ProtectedRoute>
                 }
               />
-              
+
               <Route
                 path="/reports"
                 element={
@@ -53,7 +56,6 @@ const App = () => (
                 }
               />
 
-              {/* --- 2. ADD THIS NEW ROUTE FOR A SINGLE REPORT --- */}
               <Route
                 path="/reports/:reportId"
                 element={
