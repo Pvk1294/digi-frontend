@@ -13,13 +13,6 @@ export const AdminPanel = () => {
       <AddBusinessAccount />
       <AssignmentManager />
 
-      {/* Placeholder Cards for other potential admin functions */}
-      <Card>
-        {/* ... IP Whitelist Card ... */}
-      </Card>
-      <Card>
-        {/* ... Security Settings Card ... */}
-      </Card>
     </div>
   );
 };
