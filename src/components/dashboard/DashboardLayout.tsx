@@ -41,10 +41,14 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </span>
               </div>
 
-              {/* Security button for super_admin */}
-              {user?.role === 'super_admin' && (
-                <Link to="/admin/security">
-                  <Button variant="outline" size="sm" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+              {/* Security button for super_admin and crm_manager */}
+              {(user?.role === 'super_admin' || user?.role === 'crm_manager') && (
+                <Link to={user.role === 'super_admin' ? "/admin/security" : "/crm/security"}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm"
+                  >
                     <Settings className="h-3 w-3 md:h-4 md:w-4" />
                     <span className="hidden sm:inline">Security</span>
                   </Button>
@@ -58,7 +62,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </Button>
             </div>
           </div>
-          
+
           {/* Mobile user info */}
           <div className="md:hidden pb-3 border-t border-gray-100 pt-3 mt-3">
             <div className="flex items-center gap-2 text-sm text-gray-600">

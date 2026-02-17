@@ -13,6 +13,7 @@ import AdminSecurityPage from "./components/admin/AdminSecurityPage";
 import { ReportsView } from "./components/reports/ReportsView";
 import { ReportDetailsPage } from "./pages/ReportDetailsPage";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { CrmSecurityPage } from "./components/crm/CrmSecurityPage";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,17 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+
+              <Route
+                path="/crm/security"
+                element={
+                  <ProtectedRoute allowedRoles={['crm_manager']}>
+                    <DashboardLayout>
+                      <CrmSecurityPage />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/dashboard"
