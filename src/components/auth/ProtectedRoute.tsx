@@ -4,12 +4,17 @@ import { useAuth } from './AuthProvider';
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
-  allowedRoles: string[]; 
+  allowedRoles: string[];
 }
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
+
+  // 🔥 WAIT for auth initialization
+  if (isLoading) {
+    return null; // or loading spinner
+  }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/" state={{ from: location }} replace />;
@@ -18,7 +23,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const isAuthorized = allowedRoles.includes(user.role);
 
   if (!isAuthorized) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

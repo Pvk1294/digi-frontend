@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         sessionStorage.setItem('user', JSON.stringify(data.user));
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user: data.user, token: data.token } });
         toast({ title: "Login Successful" });
+        window.location.href = "/";
       } else {
         throw new Error(data.message || "Invalid login response.");
       }
